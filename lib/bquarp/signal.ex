@@ -3,6 +3,7 @@ defmodule BQuarp.Signal do
 	alias BQuarp.Context
 	alias BQuarp.Guarantee
 	alias BQuarp.SignalObs, as: Sobs
+	alias BQuarp.Registry
 
 	alias Observables.Obs
   alias Observables.GenObservable
@@ -55,7 +56,7 @@ defmodule BQuarp.Signal do
 	@doc """
 	Returns the guarantees of the given signal.
 	"""
-	def guarantees({:signal, obs, cgs}), do: cgs
+	def guarantees({:signal, _, cgs}), do: cgs
 
 	@doc """
 	Checks if the given signal carries the given guarantee.
@@ -175,7 +176,7 @@ defmodule BQuarp.Signal do
 	Generally used for side effects.
 	"""
 	def each({:signal, obs, cgs}, proc) do
-		{vobs, cobs} = obs
+		{vobs, _cobs} = obs
 		|> Obs.unzip
 		vobs
 		|> Obs.each(proc)
@@ -241,7 +242,7 @@ defmodule BQuarp.Signal do
 	d = a + b: 	     					------------------ 9(x2,1) -- 11(x2,2) ------ 10(x2,3)
 		(with {:g, 0}, {:t, 0})
 	"""
-	def liftapp({:signal, obs, cgs} = s, func) do
+	def liftapp({:signal, _, _} = s, func) do
 		liftapp([s], func)
 	end
 	def liftapp(signals, func) do
@@ -304,7 +305,7 @@ defmodule BQuarp.Signal do
 	* A higher order signal carrying new signals of guarantee g.
 	* A function operating on lists of any size.
 	"""
-	def liftapp_var([{:signal, obs, cgs} | st]=ss, {:signal, hobs, _} = hos, func) do
+	def liftapp_var([{:signal, _, cgs} | _]=ss, {:signal, hobs, _}, func) do
 		inds = 0..(length(ss)-1)
 
 		# Tag each value from an observee with its respective index
@@ -317,7 +318,7 @@ defmodule BQuarp.Signal do
 
     # Unwrap each signal from the higher-order signal and tag it with :newsignal.
     {thobs_f, thobs_p} = hobs
-    |> Obs.map(fn {s, cg} -> {:newsignal, s} end)
+    |> Obs.map(fn {s, _cg} -> {:newsignal, s} end)
 
     # Create the arguments
 		gs = ss
@@ -329,7 +330,7 @@ defmodule BQuarp.Signal do
 		|> Enum.map(fn i -> {i, []} end)
 		|> Map.new
 		imap = tobss
-		|> Stream.map(fn {f, pid} -> pid end)
+		|> Stream.map(fn {_f, pid} -> pid end)
 		|> Enum.zip(inds)
 		|> Map.new
 
@@ -361,10 +362,33 @@ defmodule BQuarp.Signal do
     {:signal, robs, cgs}
 	end
 
+  @doc """
+  Gets a signal from the registry by its name.
+  """
+  def signal(name) do
+    {:ok, signal} = Registry.get_signal(name)
+    signal
+  end
+
+  @doc """
+  Publishes a signal by registering it in the registry.
+  """
+	def register(signal, name) do
+		Registry.add_signal(signal, name)
+    signal
+	end
+
+  @doc """
+  Unregisters a signal from the registry by its name.
+  """
+  def unregister(name) do
+    Registry.remove_signal(name)
+  end
+
 	@doc """
 	Inspects the given signal by printing its output values to the console.
 	"""
-	def print({:signal, obs, cgs}) do
+	def inspect({:signal, obs, cgs}) do
 		obs
 		|> Obs.inspect
 		{:signal, obs, cgs}

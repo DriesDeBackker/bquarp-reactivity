@@ -19,7 +19,7 @@ defmodule BQuarp.Context do
 	nil
 	"""
 	def combine(contexts, {:fp, _}), do: combine(contexts, :fp)
-	def combine(contexts, :fp), do: nil
+	def combine(_contexts, :fp), do: nil
 
 	@doc """
 	Combines a list of contexts in the case of enforcing fifo with update semantics
@@ -27,7 +27,7 @@ defmodule BQuarp.Context do
 	Returns a fifo context: nil
 	"""
 	def combine(contexts, {:fu, _}), do: combine(contexts, :fu)
-	def combine(contexts, :fu), do: nil
+	def combine(_contexts, :fu), do: nil
 
 	@doc """
 	combines a list of contexts in the case of enforcing time synchronization (clock-difference)
@@ -161,13 +161,13 @@ defmodule BQuarp.Context do
 	Calculates the penalty of a context in the case of enforcing fifo with propagate semantics
 	"""
 	def penalty(context, {:fp, _}), do: penalty(context, :fp)
-	def penalty(context, :fp), do: 0
+	def penalty(_context, :fp), do: 0
 
 	@doc """
 	Calculates the penalty of a context in the case of enforcing fifo with update semantics
 	"""
 	def penalty(context, {:fu, _}), do: penalty(context, :fu)
-	def penalty(context, :fu), do: 0
+	def penalty(_context, :fu), do: 0
 
 	@doc """
 	calculates the penalty of a context in the case of enforcing time-synchronization.
@@ -271,7 +271,7 @@ defmodule BQuarp.Context do
 
 	If the context is a list of paths
 	"""
-	def transform(c, trans, {:c, m}) do
+	def transform(c, trans, {:c, _m}) do
 		case c do
 			[[_ | _]=path] 	-> path ++ trans
 			[[_ | _] | _] 	-> [c] 	++ trans
@@ -304,7 +304,7 @@ defmodule BQuarp.Context do
 	Creates an observable carrying the contexts 
 	for the respective values of a given observable under glitch-freedom.
 	"""
-	def new_context_obs(obs, {:g, m}) do
+	def new_context_obs(obs, {:g, _m}) do
 		{_f, pid} = obs
 		Obs.count(obs, 0)
 		|> Obs.map(fn n -> [{{node(), pid}, n-1}] end)
@@ -314,7 +314,7 @@ defmodule BQuarp.Context do
 	Creates an observable carrying the contexts 
 	for the respective values of a given observable under time-synchronization.
 	"""
-	def new_context_obs(obs, {:t, m}) do
+	def new_context_obs(obs, {:t, _m}) do
 		Obs.count(obs, 0)
 		|> Obs.map(fn n ->  n-1 end)
 	end
@@ -323,7 +323,7 @@ defmodule BQuarp.Context do
 	Creates an observable carrying the contexts 
 	for the respective values of a given observable under causality.
 	"""
-	def new_context_obs(obs, {:c, m}) do
+	def new_context_obs(obs, {:c, _m}) do
 		{_f, pid} = obs
 		Obs.count(obs, 0)
 		|> Obs.map(fn n -> [{{node(), pid}, n-1}] end)
