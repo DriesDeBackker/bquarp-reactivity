@@ -6,7 +6,7 @@ defmodule Test.BQuarp.SignalTest do
 
 	require Logger
 
-	@tag :disabled
+	#@tag :disabled
 	test "to and from observable" do
 		testprocess = self()
 
@@ -24,7 +24,7 @@ defmodule Test.BQuarp.SignalTest do
 		assert_receive(:v, 1000, "did not get this message!")
 	end
 
-	@tag :disabled
+	#@tag :disabled
 	test "add, remove, set and keep guarantees" do
 		obs = Subject.create
 		signal = obs
@@ -54,7 +54,7 @@ defmodule Test.BQuarp.SignalTest do
 		assert(not Signal.carries_guarantee?(signal, {:c, 0}))
 	end
 
-	@tag :disabled
+	#@tag :disabled
 	test "filter" do
 		testprocess = self()
 
@@ -77,7 +77,7 @@ defmodule Test.BQuarp.SignalTest do
     end
 	end
 
-	@tag :disabled
+	#@tag :disabled
 	test "merge" do
 		testprocess = self()
 
@@ -99,7 +99,7 @@ defmodule Test.BQuarp.SignalTest do
 		assert_receive(:v2, 1000, "did not get this message!")
 	end
 
-	@tag :disabled
+	#@tag :disabled
   test "scan" do
     testproc = self()
 
@@ -134,6 +134,7 @@ defmodule Test.BQuarp.SignalTest do
     end
   end
 
+  #@tag :disabled
   test "lift and apply a function to a signal" do
   	testproc = self()
     obs = Subject.create
@@ -150,6 +151,7 @@ defmodule Test.BQuarp.SignalTest do
     assert_receive(10, 1000, "did not get this message!")
   end
 
+  #@tag :disabled
   test "lift and apply a function to two signals (1)" do
   	testproc = self()
     obs1 = Subject.create
@@ -183,6 +185,7 @@ defmodule Test.BQuarp.SignalTest do
     assert_receive(10, 1000, "did not get this message!")
   end
 
+  #@tag :disabled
   test "lift and apply a function to two signals (2)" do
   	testproc = self()
     obs1 = Subject.create
@@ -208,6 +211,123 @@ defmodule Test.BQuarp.SignalTest do
 
     Subject.next(obs1, 3)
     assert_receive(6, 1000, "did not get this message!")
+  end
+
+  test "lift and apply a function to two signals (3)" do
+    testproc = self()
+    obs1 = Subject.create
+    obs2 = Subject.create
+
+    signal1 = obs1
+    |> Signal.from_obs({:fu, 0})
+    signal2 = obs2
+    |> Signal.from_obs({:fp, 0})
+    [signal1, signal2]
+    |> Signal.liftapp(fn x, y -> x + y end)
+    |> Signal.each(fn x -> send(testproc, x) end)
+
+    Subject.next(obs2, 1)
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      0 -> :ok
+    end
+
+    Subject.next(obs2, 5)
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      0 -> :ok
+    end
+
+    Subject.next(obs1, 3)
+    assert_receive(4, 1000, "did not get this message!")
+    assert_receive(8, 1000, "did not get this message!")
+  end
+
+  test "lift and apply a function to two signals (4)" do
+    testproc = self()
+    obs1 = Subject.create
+    obs2 = Subject.create
+
+    signal1 = obs1
+    |> Signal.from_obs({:fu, 0})
+    signal2 = obs2
+    |> Signal.from_obs({:fu, 0})
+    [signal1, signal2]
+    |> Signal.liftapp(fn x, y -> x + y end)
+    |> Signal.each(fn x -> send(testproc, x) end)
+
+    Subject.next(obs2, 1)
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      0 -> :ok
+    end
+
+    Subject.next(obs2, 5)
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      0 -> :ok
+    end
+
+    Subject.next(obs1, 3)
+    assert_receive(8, 1000, "did not get this message!")
+  end
+
+  test "lift and apply a list function to a variable number of signals" do
+    testproc = self()
+    obs1 = Subject.create
+    obs2 = Subject.create
+    obs3 = Subject.create
+    hobs = Subject.create
+
+    signal1 = obs1
+    |> Signal.from_obs({:fu, 0})
+    signal2 = obs2
+    |> Signal.from_obs({:fu, 0})
+    signal3 = obs3
+    |> Signal.from_obs({:fu, 0})
+    hsignal = hobs
+    |> Signal.from_obs
+    [signal1, signal2]
+    |> Signal.liftapp_var(hsignal, fn xs -> Enum.sum(xs) / length(xs) end)
+    |> Signal.each(fn x -> send(testproc, x) end)
+
+    Subject.next(obs1, 1)
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      0 -> :ok
+    end
+
+    Subject.next(obs2, 5)
+    assert_receive(3.0, 1000, "did not get this message!")
+
+    Subject.next(obs1, 3)
+    assert_receive(4.0, 1000, "did not get this message!")
+
+    Subject.next(hobs, signal3)
+
+    Subject.next(obs1, 7)
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      0 -> :ok
+    end
+
+    Subject.next(obs1, 4)
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      0 -> :ok
+    end
+
+    Subject.next(obs3, 3)
+    receive do
+      x -> IO.puts("FFFFFFFFFFFFFFFFFFFuck: #{inspect x}")
+    end
   end
 
 end

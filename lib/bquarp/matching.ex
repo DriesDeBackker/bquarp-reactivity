@@ -24,14 +24,14 @@ defmodule BQuarp.Matching do
   Returns :nomatch if not succesful
   """
   def match(b, msg, i, gs) do
-    {fqs, fis, fgs, mcgs} = b
+    {fqs, fks, fgs, mcgs} = b
     |> preprocess(i, gs)
     case imatch_(fqs, fgs, msg, mcgs) do
       {:ok, match, contexts, split_queues} ->
         complete_match = match 
         |> List.insert_at(i, msg)
         new_b = split_queues 
-        |> postprocess(fis, msg, i, fgs, gs)
+        |> postprocess(fks, msg, i, fgs, gs)
         {:ok, complete_match, contexts, new_b}
       {:err, _reason} -> :nomatch
     end
@@ -44,19 +44,18 @@ defmodule BQuarp.Matching do
   """
   defp preprocess(b, i, gs) do
     parent_q = Map.get(b, i)
-    #Create a list of queues and a list of corresponding parent ids with the entries for the parent of the message removed.
     mcgs = gs
     |> Map.get(i)
-    fgs = 0..map_size(gs)-1
-    |> Enum.map(fn n -> Map.get(gs, n) end)
-    |> List.delete_at(i)
-    fqs = 0..map_size(b)-1
-    |> Enum.map(fn n -> Map.get(b, n) end)
-    |> List.delete(parent_q)
-    |> reverse(fgs)
-    fks = 0..map_size(b)-1
-    |> Enum.to_list
+    ks = b
+    |> Map.keys
+    |> Enum.sort
+    fks = ks
     |> List.delete(i)
+    fgs = fks
+    |> Enum.map(fn n -> Map.get(gs, n) end)
+    fqs = fks
+    |> Enum.map(fn n -> Map.get(b, n) end)
+    |> reverse(fgs)
     {fqs, fks, fgs, mcgs}
   end
 
@@ -71,7 +70,7 @@ defmodule BQuarp.Matching do
     * the id of the message's parent is not part of this list.
   - the original input buffer
   - the local id of the parent that sent the message
-  - the guarantee type
+  - the guarantees of each signal.
   Outputs: 
   - the new input buffer, which
      * in each queue list contains no messages before the message that is matched in that buffer.
@@ -82,11 +81,13 @@ defmodule BQuarp.Matching do
     |> standardize(fgs)
     |> Enum.map(&elem(&1,1))
     new_parent_q = [msg]
+    completed_ks = [i | fks]
+    |> Enum.sort
+    position = completed_ks
+    |> Enum.find_index(fn x -> x == i end)
     completed_qs = remainder_qs
-    |> List.insert_at(i, new_parent_q)
+    |> List.insert_at(position, new_parent_q)
     |> consume(gsmap)
-    completed_ks = fks
-    |> List.insert_at(i, i)
     new_b = completed_ks
     |> Enum.zip(completed_qs)
     |> Map.new

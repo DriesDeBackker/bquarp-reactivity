@@ -254,7 +254,7 @@ defmodule BQuarp.Signal do
     |> Enum.map(fn {obs, index} -> 
     	obs
       #|> Observables.Obs.inspect()
-      |> Obs.map(fn msg -> {index, msg} end) end)
+      |> Obs.map(fn msg -> {:newvalue, index, msg} end) end)
 
     # Create the arguments
 		gs = signals
@@ -296,9 +296,75 @@ defmodule BQuarp.Signal do
 	end
 
 	@doc """
+	Lifts and applies a function that operates on lists of variable size
+	to a list of signals that may be subject to change.
+
+	Takes
+	* A list of signals, each carrying the same guarantee g (can be plural).
+	* A higher order signal carrying new signals of guarantee g.
+	* A function operating on lists of any size.
+	"""
+	def liftapp_var([{:signal, obs, cgs} | st]=ss, {:signal, hobs, _} = hos, func) do
+		inds = 0..(length(ss)-1)
+
+		# Tag each value from an observee with its respective index
+		tobss = ss
+		|> Stream.map(fn {:signal, obs, _cgs} -> obs end)
+    |> Stream.zip(inds)
+    |> Enum.map(fn {obs, ind} -> 
+    	obs
+      |> Obs.map(fn msg -> {:newvalue, ind, msg} end) end)
+
+    # Unwrap each signal from the higher-order signal and tag it with :newsignal.
+    {thobs_f, thobs_p} = hobs
+    |> Obs.map(fn {s, cg} -> {:newsignal, s} end)
+
+    # Create the arguments
+		gs = ss
+		|> Enum.map(fn {:signal, _obs, cgs} -> cgs end)
+		gmap = inds
+		|> Enum.zip(gs)
+		|> Map.new
+		qmap = inds
+		|> Enum.map(fn i -> {i, []} end)
+		|> Map.new
+		imap = tobss
+		|> Stream.map(fn {f, pid} -> pid end)
+		|> Enum.zip(inds)
+		|> Map.new
+
+		# Start our CombineVarWithGuarantees observable.
+    {:ok, pid} = GenObservable.start(CombineVarWithGuarantees, [qmap, gmap, imap, thobs_p])
+    # Make the observees send to us.
+    tobss |> Enum.each(fn {obs_f, _obs_pid} -> obs_f.(pid) end)
+    # Make the higher order observable send to us
+    thobs_f.(pid)
+    # Create the continuation.
+    cobs = {fn observer -> GenObservable.send_to(pid, observer) end, pid}
+
+    # Apply the function to the combined observable
+    aobs = cobs
+    |> Obs.map(fn {vals, cxts} -> 
+    	{func.(vals), cxts} end)
+
+    # Apply the appropriate transformations to the contexts
+    tobs = cgs
+    |> Enum.map(fn cg -> Context.new_context_obs(aobs, cg) end)
+    |> Obs.zip_n
+    robs = aobs
+    |> Obs.zip(tobs)
+    |> Obs.map(fn {{v, cxs}, ts} -> 
+    	tslist = Tuple.to_list(ts)
+    	new_cxs = Context.transform(cxs, tslist, cgs)
+    	{v, new_cxs} end)
+
+    {:signal, robs, cgs}
+	end
+
+	@doc """
 	Inspects the given signal by printing its output values to the console.
 	"""
-	def inspect({:signal, obs, cgs}) do
+	def print({:signal, obs, cgs}) do
 		obs
 		|> Obs.inspect
 		{:signal, obs, cgs}
