@@ -18,7 +18,7 @@ defmodule Reactivity.DSL.Signal do
 	Creates a signal from a plain observable.
 
 	Attaches the given consistency guarantee to it if provided.
-	otherwise attaches the globally defined consistency guarantee,
+	Otherwise attaches the globally defined consistency guarantee,
 	which is fifo with update semantics ({:fu, 0}) by default.
 	"""
 	def from_plain_obs(obs) do
@@ -38,8 +38,16 @@ defmodule Reactivity.DSL.Signal do
 	The assumption here is that the contexts of the observable have already been attached.
 	The primitive can be used for guarantees with non-obvious contexts (other than e.g. counters)
 	the developer might come up with.
+
+	Attaches the given consistency guarantee to it if provided without changing the context.
+	Otherwise attaches the globally defined consistency guarantee,
+	which is fifo with update semantics ({:fu, 0}) by default.
 	"""
-	def from_signal_obs(sobs, cgs \\ [{:fu, 0}]) do
+	def from_signal_obs(sobs) do
+		cg = Registry.get_guarantee
+		from_signal_obs(sobs, [cg])
+	end
+	def from_signal_obs(sobs, cgs) do
 		{:signal, sobs, cgs}
 	end
 
@@ -51,6 +59,10 @@ defmodule Reactivity.DSL.Signal do
 		|> Sobs.to_plain_obs
 	end
 
+	@doc """
+	Transforms a signal into a signal observable,
+	meaning that both the value and context {v, c} of each observable message are preserved.
+	"""
 	def to_signal_obs({:signal, sobs, _cgs}) do
 		sobs
 	end
@@ -182,7 +194,7 @@ defmodule Reactivity.DSL.Signal do
   Applies a given procedure to a signal's value and its previous result. 
   Works in the same way as the Enum.scan function:
 
-  Enum.scan(1..10, fn(x,y) -> x + y end) 
+  Enum.scan(1..10, fn(x,y) -> x + y end)
   => [1, 3, 6, 10, 15, 21, 28, 36, 45, 55]
   """
 	def scan({:signal, sobs, cgs}, func, default \\ nil) do
@@ -210,8 +222,14 @@ defmodule Reactivity.DSL.Signal do
 	@doc """
 	Lifts and applies an ordinary function to one or more signals
 
-	Values of the input signals are produced into output using this function
-	Output is only created if a newly received message can be combined with the rest of the buffer
+	Takes:
+	* A list of signals carrying any consistency guarantees
+	* A function taking the number of arguments that is equal to number of signals.
+
+	Returns:
+	* A signal for which the given function is applied to the input.
+
+	Output for the resulting signal is only created if a newly received message from an input signal can be combined with the rest of the buffer
 	under the consistency guarantees of the different signals.
 
 	The resulting consistency guarantee of the output signal is a combination of the guarantees of the input signals.
@@ -223,94 +241,104 @@ defmodule Reactivity.DSL.Signal do
 		- Each value is regarded as an update that may trigger a new output.
 		- This is similar to 'combining latest' of observables in Reactive Extensions.
 	* With propagate semantics:
-	  - They have their used values kept only ntil they can be combined,
-			at which point they are removed so they can't be used more than once.
+	  - They have their used values kept only ntil they can be combined, at which point they are removed so they can't be used more than once.
 		- Each value is regarded as a value in a (time-series) data stream to be combined and propagated.
 		- This is similar to zipping of observables in Reactive Extensions.
 	* With both update as well as propagate semantics:
 		- New output is triggered by propagate-signals in steady state.
 		- New input for update signals is kept as state to be combined with.
-		- The first value of an update signal can trigger a series of outputs
-		  if there is a propagate history that has been waiting for this value to combine.
-		- This is similar to 'combining latest silent' (with buffered propagation) in Reactive Extensions
-		   (specifically in the Observables Extendend library only)
+		- The first value of an update signal can trigger a series of outputs if there is a propagate history that has been waiting for this value to combine.
+		- This is similar to 'combining latest silent' (with buffered propagation) in Reactive Extensions (specifically in the Observables Extendend library)
 
-	E.g.:
+	E.g.: c = a + b (with a, b and the resulting c all having {:fu, _} = update-fifo for guarantee)
 
-	s1 with {:fu, _}: 5 --------------------------------- 1 -->
+	a: 5 --------------------------------- 1 -->
 
-	s2 with {:fu, _}: ------------- 3 --------- 5 ------------>
+	b: ------------- 3 --------- 5 ------------>
 
-	s3 = s1 + s2 			-------------- 8 --------- 10 ------ 6 ->
+	c: -------------- 8 --------- 10 ------ 6 ->
 
 
-	E.g.:
+	E.g.: c = a + b (with a having {:fu, _}, b having {:fp, _} 
+	and the resulting c having [{:fu, _}, {:fp, _}] for guarantee)
 
-	a with {:fu, _}:  5 ---------------------------------- 1 ->
+	a:  5 ------------------------------------ 1
 
-	b with {:fp, _}:  ------------- 3 ---- 5 ----------------->
+	b:  ------------- 3 ------ 5 -------------->
 
-	c = a + b			    -------------- 8 ---- 10 --------------->
-
-
-	E.g.:
-
-	a with {:fp, _}:  5 --------------------------------- 1 -->
-
-	b with {:fp, _}:  ------------- 3 ---- 5 ----------------->
-
-	c = a + b			    -------------- 8 ------------------- 6 ->
+	c:	-------------- 8 ------ 10 ------------>
 
 
-	E.g.:
+	E.g.: c = a + b (with a, b and the resulting c all having {:fp, _} = propagate-fifo for guarantee)
 
-	a with {:t, 0}:   5(2) ------- 3(3} ------------ 1(4) ----------->
+	a: 5 --------------------------------- 1 -->
 
-	b with {:t, 0}:   ------ 4(1) ---------- 5(2) ------------ 3(3)-->
+	b: ------------- 3 ---- 5 ----------------->
 
-	c = a + b		      ----------------------- 10(2) ------------6(3)->
-
-
-	E.g.:
-
-	a with {:c, 0}:  5(x2,y2) ------------------------------------- 2(x3,y3)
-
-	b with {:c, 0}:  -------- 3(x1) --- 3(x2) -- 8(x3) -- 7(x4) ----------->
-
-	d = a + b: 	     ------------------- 8(..) -- 13(..) -- 12(..) --- 9(..)
+	c: -------------- 8 ------------------- 6 ->
 
 
-	E.g.:
+	E.g.: c = a + b (with a, b and the resulting c all having {:t, 0} = strict time-synchronization for guarantee)
 
-	a with {:g, 0}:  5(x2) -------------------------------------- 2(x3) --->
+	a: 5(2) ----------- 3(3} -------------- 1(4) -------------->
 
-	b with {:g, 0}:  ----- 3(x1) ------ 3(x2) -- 8(x3) -------------------->
+	b: ---------- 4(1) ------------ 5(2) -------------- 3(3) -->
 
-	c with {:g, 0}:  ------------ 7(y5) -------------- 4(y6)--------------->
-
-	d = a + b + c: 	 ------------------- 15(x2,y5) -----12(x2,y6)--14(x3,y6)
+	c: ----------------------------- 10(2) --------------6(3) ->
 
 
-	E.g.:
+	E.g.: c = a + b (with a, b and the resulting c all having {:t, 1} = relaxed time-synchronization for guarantee)
 
-	a with {:g, 0}:  5(x2) -------------------------------------- 2(x3) --->
+	a: 5(2) -------------- 3(3} ------------- 1(4) ------------>
 
-	b with {:g, 0}:  ----- 3(x1) ----- 3(x2) --- 8(x3) -------------------->
+	b: ---------- 4(1) -------------- 5(2) ------------- 3(3) ->
 
-	c with {:t, 0}:  ------------ 7(5) ---------------- 4(6)--------------->
-
-	d = a + b + c: 	 ------------------ 15(x2,5) --------12(x2,6)---------->
-
-	(with the resulting guarantees of d being: {:g, 0}, {:t, 0})
+	c: ----------- 9(1,2) ------------- 8(2,3) ---------- 4(3,4)
 
 
-	E.g.:
+	E.g.: c = a + b (with a, b and the resulting c all having {:c, 0} = strict causality for guarantee)
 
-	a with {:g, 0}, {:t, 0}:  5(x2,1) ------------------ 7(x2,2)------- 6(x2,3)->
+	a: 5(x2,y2) --------------------------------------- 2(x3,y3)
 
-	b with {:g, 0}:  					------ 3(x1) -- 4(x2) ------------ 7(x3) --------->
+	b: -------- 3(x1) ---- 3(x2) --- 8(x3) --- 7(x4) ---------->
 
-	d = a + b: 	     					---------------- 9(x2,1) -- 11(x2,2) ----- 10(x2,3)
+	c: -------------------- 8(..) --- 13(..) --- 12(..) -- 9(..)
+
+	(For more information: consult the DREAM academic paper by Salvaneschi et al.)
+
+
+	E.g.: d = a + b + c (with a, b, c and the resulting d all having {:g, 0} = strict glitch freedom for guarantee)
+
+	a: 5(x2) ---------------------------------------- 2(x3) --->
+
+	b: ----- 3(x1) ------ 3(x2) -- 8(x3) ---------------------->
+
+	c: ------------ 7(y5) -------------- 4(y6)----------------->
+
+	d: ------------------- 15(x2,y5) ---- 12(x2,y6) -- 14(x3,y6)
+
+	(For more information: consult the QUARP and/or DREAM academic paper)
+
+
+	E.g.: d = a + b + c (with a, b having {:g, 0}, c having {:t, 0} and the resulting d having [{:g, 0}, {:t, 0}] for guarantee)
+
+	a: 5(x2) --------------------------------------------- 2(x3)
+
+	b: ------- 3(x1) ---------- 3(x2) --- 8(x3) --------------->
+
+	c: --------------- 7(5) --------------------- 4(6) -------->
+
+	d: ------------------------- 15(x2,5) -------- 12(x2,6) --->
+
+
+	E.g.: c = a + b (with a having [{:g, 0}, {:t, 0}], b having {:g, 0} and the resulting c having [{:g, 0}, {:t, 0}] for guarantee)
+
+
+	a: 5(x2,1) ---------------------- 7(x2,2) -------- 6(x2,3)->
+
+	b: ------- 3(x1) ---- 4(x2) --------------- 7(x3) --------->
+
+	c: ------------------- 9(x2,1) --- 11(x2,2) ------- 10(x2,3)
 
 	(with the resulting guarantees of d being: {:g, 0}, {:t, 0})
 	"""
@@ -370,13 +398,29 @@ defmodule Reactivity.DSL.Signal do
 
 	@doc """
 	Lifts and applies a function that operates on lists of variable size
-	to a list of signals that may be subject to change.
+	to a list of signals that can be subject to change.
 
-	Takes
-
+	Takes:
 	* A list of signals, each carrying the same guarantee g (can be plural).
 	* A higher order signal carrying new signals of guarantee g.
 	* A function operating on lists of any size.
+
+	E.g.: b = List.sum(as) / length(as) (with all a's having {:fu, _} for guarantee) and h a signal carrying new signals.
+
+	h : ----------------- a3 --------------------- a4 -------->
+
+	a1: 5 ------------------------------///////////////////////
+
+	a2: ------------- 3 ----------------------- 6 ------------>
+
+	a3: //////////////////------ 7 --------------------------->
+
+	a4: ////////////////////////////////////////////---- 2 --->
+
+	...
+
+	b : -------------- 4 -------- 5 ------------ 6 ------ 5 -->
+
 	"""
 	def liftapp_var([{:signal, _, cgs} | _]=ss, {:signal, hobs, _}, func) do
 		inds = 0..(length(ss)-1)
