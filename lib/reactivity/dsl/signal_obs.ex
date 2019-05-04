@@ -5,7 +5,7 @@ defmodule Reactivity.DSL.SignalObs do
 
 	@doc """
 	Turns a plain observable into a signal observable
-	by wrapping each of its values v into a tuple {v, []},
+	by wrapping each of its values v into a tuple `{v, []}`,
 	the empty list being a list of potential contexts.
 	"""
 	def from_plain_obs(obs) do
@@ -15,7 +15,7 @@ defmodule Reactivity.DSL.SignalObs do
 
 	@doc """
 	Turns a signal observable back into a plain observable
-	by unwrapping each of its values v from its encompassing tuple {v, c},
+	by unwrapping each of its values v from its encompassing tuple `{v, c}`,
 	effectively stripping it from any associated contexts it might have.
 	"""
 	def to_plain_obs(sobs) do
@@ -35,8 +35,8 @@ defmodule Reactivity.DSL.SignalObs do
 
 	@doc """
 	Adds the appropriate contexts to a signal observable for the given consistency guarantee
-	The context is added to the back of the list of contexts [c]
-	that is part of the tuple {v, [c]}, the value format of a signal observalbe
+	The context is added to the back of the list of contexts `[c]`
+	that is part of the tuple `{v, [c]}`, the value format of a signal observalbe
 	"""
 	def add_context(sobs, cg) do
 		acobs = Context.new_context_obs(sobs, cg)

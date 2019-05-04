@@ -11,8 +11,6 @@ defmodule Reactivity.Processing.CombineWithGuarantees do
   end
 
   def handle_event({:newvalue, index, msg}, {:buffer, buffer, :guarantees, gss}) do
-    Logger.debug("The message received: #{inspect msg}")
-    Logger.debug("The buffer right now: #{inspect buffer}")
   	updated_buffer = %{buffer | index => Map.get(buffer, index) ++ [msg]}
   	case Matching.match(updated_buffer, msg, index, gss) do
       :nomatch ->
@@ -30,7 +28,6 @@ defmodule Reactivity.Processing.CombineWithGuarantees do
   end
 
   def handle_event({:spit, index}, {:buffer, buffer, :guarantees, gss}) do
-    Logger.debug("Spitting..")
     msg = buffer
     |> Map.get(index)
     |> List.first

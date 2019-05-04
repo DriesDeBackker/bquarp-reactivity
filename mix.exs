@@ -25,7 +25,7 @@ defmodule BQuarp.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.19", only: :dev},
-      {:observables_extended, "~> 0.1.0"}
+      {:observables_extended, "~> 0.2.0"}
     ]
   end
 

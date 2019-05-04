@@ -59,12 +59,10 @@ defmodule Test.BQuarp.SignalTest do
 		testprocess = self()
 
 		obs = Subject.create
-		signal = obs
+		obs
 		|> Signal.from_plain_obs({:g, 0})
 		|> Signal.filter(fn x -> x > 5 end)
-		signal
-		|> Signal.to_plain_obs
-		|> Obs.map(fn x -> send(testprocess, x) end)
+		|> Signal.each(fn x -> send(testprocess, x) end)
 
 		Subject.next(obs, 10)
 		assert_receive(10, 1000, "did not get this message!")
@@ -99,6 +97,88 @@ defmodule Test.BQuarp.SignalTest do
 		assert_receive(:v2, 1000, "did not get this message!")
 	end
 
+  #@tag :disabled
+  test "rotate" do
+    testprocess = self()
+
+    a = Subject.create
+    b = Subject.create
+    c = Subject.create
+    s1 = a
+    |> Signal.from_plain_obs({:t, 0})
+    s2 = b
+    |> Signal.from_plain_obs({:t, 0})
+    s3 = c
+    |> Signal.from_plain_obs({:t, 0})
+    [s1, s2, s3]
+    |> Signal.rotate
+    |> Signal.each(fn x -> send(testprocess, x) end)
+
+    Subject.next(b, :b1)
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      0 -> :ok
+    end
+
+    Subject.next(c, :c1)
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      0 -> :ok
+    end
+
+    Subject.next(b, :b2)
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      0 -> :ok
+    end
+
+    Subject.next(a, :a1)
+    assert_receive(:a1, 1000, "did not get this message!")
+    assert_receive(:b1, 1000, "did not get this message!")
+    assert_receive(:c1, 1000, "did not get this message!")
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      0 -> :ok
+    end
+
+    Subject.next(a, :a2)
+    assert_receive(:a2, 1000, "did not get this message!")
+    assert_receive(:b2, 1000, "did not get this message!")
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      0 -> :ok
+    end
+
+    Subject.next(c, :c2)
+    assert_receive(:c2, 1000, "did not get this message!")
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      0 -> :ok
+    end
+
+    Subject.next(b, :b3)
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      0 -> :ok
+    end
+
+    Subject.next(a, :a3)
+    assert_receive(:a3, 1000, "did not get this message!")
+    assert_receive(:b3, 1000, "did not get this message!")
+    receive do
+      x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
+    after
+      200 -> :ok
+    end
+  end
+
 	#@tag :disabled
   test "scan" do
     testproc = self()
@@ -110,8 +190,7 @@ defmodule Test.BQuarp.SignalTest do
     Obs.range(start, tend, 100)
     |> Signal.from_plain_obs
     |> Signal.scan(fn x, y -> x + y end)
-    |> Signal.to_plain_obs
-    |> Obs.each(fn v -> send(testproc, v) end)
+    |> Signal.each(fn v -> send(testproc, v) end)
 
     # Receive all the values.
     Enum.scan(1..50, fn x, y -> x + y end)
@@ -322,11 +401,6 @@ defmodule Test.BQuarp.SignalTest do
       x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
     after
       0 -> :ok
-    end
-
-    Subject.next(obs3, 3)
-    receive do
-      x -> IO.puts("FFFFFFFFFFFFFFFFFFFuck: #{inspect x}")
     end
   end
 

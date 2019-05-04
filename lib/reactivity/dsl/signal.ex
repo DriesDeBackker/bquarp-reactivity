@@ -19,7 +19,7 @@ defmodule Reactivity.DSL.Signal do
 
 	Attaches the given consistency guarantee to it if provided.
 	Otherwise attaches the globally defined consistency guarantee,
-	which is fifo with update semantics ({:fu, 0}) by default.
+	which is fifo with update semantics (`{:fu, 0}`) by default.
 	"""
 	def from_plain_obs(obs) do
 		cg = Registry.get_guarantee
@@ -41,7 +41,7 @@ defmodule Reactivity.DSL.Signal do
 
 	Attaches the given consistency guarantee to it if provided without changing the context.
 	Otherwise attaches the globally defined consistency guarantee,
-	which is fifo with update semantics ({:fu, 0}) by default.
+	which is fifo with update semantics (`{:fu, 0}`) by default.
 	"""
 	def from_signal_obs(sobs) do
 		cg = Registry.get_guarantee
@@ -166,7 +166,7 @@ defmodule Reactivity.DSL.Signal do
 	end
 
 	@doc """
-	Merges multiple signals together such that the resulting signal carries the updates of all composed signals.
+	Merges multiple signals together such that the resulting signal carries the updates of all composed signals in a fifo fashion.
 
 	If no consistency guarantee is provided, the merge leaves the updates 'as is'.
 	A necessary condition for this operation to be valid then is that the givven signals all carry the same guarantee.
@@ -191,9 +191,34 @@ defmodule Reactivity.DSL.Signal do
 	end
 
 	@doc """
+	Merges multiple signals together such that the resulting signal carries the updates of all composed signals in a round-robin fashion.
+
+	If no consistency guarantee is provided, rotate leaves the updates 'as is'.
+	A necessary condition for this operation to be valid then is that the givven signals all carry the same guarantee.
+	The consequences of using this operator in this way are left to the developer.
+
+	If however a consistency guarantee is provided, this new guarantee is attached to the resulting signal,
+	discarding the previous ones. Thus, using rotate in this way can be considered to be
+	the creation of a new source signal for this guarantee in a stratified dependency graph.
+	"""
+	def rotate(signals, new_cg) do
+		sobss = signals
+		|> Enum.map(fn {:signal, sobs, _cgs} -> sobs end)
+		robs = Obs.rotate(sobss)
+		|> Sobs.set_context(new_cg)
+		{:signal, robs, [new_cg]}
+	end
+	def rotate([{:signal, _obs, cgs} | _st] = signals) do
+		sobss = signals
+		|> Enum.map(fn {:signal, sobs, _cgs} -> sobs end)
+		robs = Obs.rotate(sobss)
+		{:signal, robs, cgs}
+	end
+
+	@doc """
   Applies a given procedure to a signal's value and its previous result. 
   Works in the same way as the Enum.scan function:
-
+	
   Enum.scan(1..10, fn(x,y) -> x + y end)
   => [1, 3, 6, 10, 15, 21, 28, 36, 45, 55]
   """
@@ -239,76 +264,76 @@ defmodule Reactivity.DSL.Signal do
 	* With update semantics:
 		- They have their last values kept as state until a more recent one is used.
 		- Each value is regarded as an update that may trigger a new output.
-		- This is similar to 'combining latest' of observables in Reactive Extensions.
+		- This is similar to 'combine latest' in Reactive Extensions.
 	* With propagate semantics:
 	  - They have their used values kept only ntil they can be combined, at which point they are removed so they can't be used more than once.
-		- Each value is regarded as a value in a (time-series) data stream to be combined and propagated.
-		- This is similar to zipping of observables in Reactive Extensions.
+	  - Each value is regarded as a value in a (time-series) data stream to be combined and propagated.
+		- This is similar to 'zip' in Reactive Extensions.
 	* With both update as well as propagate semantics:
 		- New output is triggered by propagate-signals in steady state.
 		- New input for update signals is kept as state to be combined with.
 		- The first value of an update signal can trigger a series of outputs if there is a propagate history that has been waiting for this value to combine.
-		- This is similar to 'combining latest silent' (with buffered propagation) in Reactive Extensions (specifically in the Observables Extendend library)
+		- This is similar to 'combine latest silent' (with buffered propagation) in Reactive Extensions (specifically in the Observables Extended library)
 
-	E.g.: c = a + b (with a, b and the resulting c all having {:fu, _} = update-fifo for guarantee)
-
+	E.g.: `c = a + b` (with a, b and the resulting c all having `{:fu, _}` = update-fifo for guarantee)
+	```
 	a: 5 --------------------------------- 1 -->
 
 	b: ------------- 3 --------- 5 ------------>
 
 	c: -------------- 8 --------- 10 ------ 6 ->
+	```
 
-
-	E.g.: c = a + b (with a having {:fu, _}, b having {:fp, _} 
-	and the resulting c having [{:fu, _}, {:fp, _}] for guarantee)
-
+	E.g.: `c = a + b` (with a having `{:fu, _}`, b having `{:fp, _}` 
+	and the resulting c having `[{:fu, _}, {:fp, _}]` for guarantee)
+	```	
 	a:  5 ------------------------------------ 1
 
 	b:  ------------- 3 ------ 5 -------------->
 
 	c:	-------------- 8 ------ 10 ------------>
+	```
 
-
-	E.g.: c = a + b (with a, b and the resulting c all having {:fp, _} = propagate-fifo for guarantee)
-
+	E.g.: `c = a + b` (with a, b and the resulting c all having `{:fp, _}` = propagate-fifo for guarantee)
+	```
 	a: 5 --------------------------------- 1 -->
 
 	b: ------------- 3 ---- 5 ----------------->
 
 	c: -------------- 8 ------------------- 6 ->
+	```
 
-
-	E.g.: c = a + b (with a, b and the resulting c all having {:t, 0} = strict time-synchronization for guarantee)
-
+	E.g.: `c = a + b` (with a, b and the resulting c all having `{:t, 0}` = strict time-synchronization for guarantee)
+	```
 	a: 5(2) ----------- 3(3} -------------- 1(4) -------------->
 
 	b: ---------- 4(1) ------------ 5(2) -------------- 3(3) -->
 
 	c: ----------------------------- 10(2) --------------6(3) ->
+	```
 
-
-	E.g.: c = a + b (with a, b and the resulting c all having {:t, 1} = relaxed time-synchronization for guarantee)
-
+	E.g.: `c = a + b` (with a, b and the resulting c all having `{:t, 1}` = relaxed time-synchronization for guarantee)
+	```
 	a: 5(2) -------------- 3(3} ------------- 1(4) ------------>
 
 	b: ---------- 4(1) -------------- 5(2) ------------- 3(3) ->
 
 	c: ----------- 9(1,2) ------------- 8(2,3) ---------- 4(3,4)
+	```
 
-
-	E.g.: c = a + b (with a, b and the resulting c all having {:c, 0} = strict causality for guarantee)
-
+	E.g.: `c = a + b` (with a, b and the resulting c all having `{:c, 0}` = strict causality for guarantee)
+	```
 	a: 5(x2,y2) --------------------------------------- 2(x3,y3)
 
 	b: -------- 3(x1) ---- 3(x2) --- 8(x3) --- 7(x4) ---------->
 
 	c: -------------------- 8(..) --- 13(..) --- 12(..) -- 9(..)
-
+	```
 	(For more information: consult the DREAM academic paper by Salvaneschi et al.)
 
 
-	E.g.: d = a + b + c (with a, b, c and the resulting d all having {:g, 0} = strict glitch freedom for guarantee)
-
+	E.g.: `d = a + b + c` (with a, b, c and the resulting d all having `{:g, 0}` = strict glitch freedom for guarantee)
+	```
 	a: 5(x2) ---------------------------------------- 2(x3) --->
 
 	b: ----- 3(x1) ------ 3(x2) -- 8(x3) ---------------------->
@@ -316,12 +341,12 @@ defmodule Reactivity.DSL.Signal do
 	c: ------------ 7(y5) -------------- 4(y6)----------------->
 
 	d: ------------------- 15(x2,y5) ---- 12(x2,y6) -- 14(x3,y6)
-
+	```
 	(For more information: consult the QUARP and/or DREAM academic paper)
 
 
-	E.g.: d = a + b + c (with a, b having {:g, 0}, c having {:t, 0} and the resulting d having [{:g, 0}, {:t, 0}] for guarantee)
-
+	E.g.: `d = a + b + c` (with a, b having `{:g, 0}`, c having `{:t, 0}` and the resulting d having `[{:g, 0}, {:t, 0}]` for guarantee)
+	```
 	a: 5(x2) --------------------------------------------- 2(x3)
 
 	b: ------- 3(x1) ---------- 3(x2) --- 8(x3) --------------->
@@ -329,17 +354,16 @@ defmodule Reactivity.DSL.Signal do
 	c: --------------- 7(5) --------------------- 4(6) -------->
 
 	d: ------------------------- 15(x2,5) -------- 12(x2,6) --->
+	```
 
-
-	E.g.: c = a + b (with a having [{:g, 0}, {:t, 0}], b having {:g, 0} and the resulting c having [{:g, 0}, {:t, 0}] for guarantee)
-
-
+	E.g.: `c = a + b` (with a having `[{:g, 0}, {:t, 0}]`, b having `{:g, 0}` and the resulting c having `[{:g, 0}, {:t, 0}]` for guarantee)
+	```
 	a: 5(x2,1) ---------------------- 7(x2,2) -------- 6(x2,3)->
 
 	b: ------- 3(x1) ---- 4(x2) --------------- 7(x3) --------->
 
 	c: ------------------- 9(x2,1) --- 11(x2,2) ------- 10(x2,3)
-
+	```
 	(with the resulting guarantees of d being: {:g, 0}, {:t, 0})
 	"""
 	def liftapp({:signal, _, _} = s, func) do
@@ -405,8 +429,8 @@ defmodule Reactivity.DSL.Signal do
 	* A higher order signal carrying new signals of guarantee g.
 	* A function operating on lists of any size.
 
-	E.g.: b = List.sum(as) / length(as) (with all a's having {:fu, _} for guarantee) and h a signal carrying new signals.
-
+	E.g.: `b = List.sum(as) / length(as)` (with all a's having `{:fu, _}` for guarantee) and h a signal carrying new signals.
+	```
 	h : ----------------- a3 --------------------- a4 -------->
 
 	a1: 5 ------------------------------///////////////////////
@@ -420,7 +444,7 @@ defmodule Reactivity.DSL.Signal do
 	...
 
 	b : -------------- 4 -------- 5 ------------ 6 ------ 5 -->
-
+	```
 	"""
 	def liftapp_var([{:signal, _, cgs} | _]=ss, {:signal, hobs, _}, func) do
 		inds = 0..(length(ss)-1)

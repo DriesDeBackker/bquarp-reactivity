@@ -23,7 +23,6 @@ defmodule Reactivity.Processing.CombineVarWithGuarantees do
 
   # Handle a new signal to listen to.
   def handle_event({:newsignal, signal}, {buffer, gmap, imap, hosp, amap, kcounter}) do
-  	Logger.error("new signal: #{inspect signal}")
   	# Tag the new signal with its newly given index so that we can process it properly.
   	{:signal, obs, gs} = signal
   	{t_f, t_pid} = obs
@@ -39,20 +38,15 @@ defmodule Reactivity.Processing.CombineVarWithGuarantees do
 		new_imap = imap
 		|> Map.put(t_pid, kcounter)
 		new_kcounter = kcounter + 1
-		Logger.error("new buffer: #{inspect new_buffer}")
 		{:novalue, {new_buffer, new_gmap, new_imap, hosp, new_amap, new_kcounter}}
   end
 
   def handle_event({:newvalue, index, msg}, {buffer, gmap, imap, hosp, amap, kcounter}) do
   	updated_buffer = %{buffer | index => Map.get(buffer, index) ++ [msg]}
-  	Logger.error("received message: #{inspect msg}")
-  	Logger.error("updated_buffer: #{inspect updated_buffer}")
   	case Matching.match(updated_buffer, msg, index, gmap) do
       :nomatch ->
-      	Logger.error("nomatch")
         {:novalue, {updated_buffer, gmap, imap, hosp, amap, kcounter}}
       {:ok, match, contexts, new_buffer} ->
-      	Logger.error("got a match")
         {vals, _contextss} = match
         |> Enum.unzip
         if first_value?(index, buffer)
@@ -61,13 +55,11 @@ defmodule Reactivity.Processing.CombineVarWithGuarantees do
           Process.send(self(), {:event, {:spit, index, msg}}, [])
         end
         {new_buffer, new_gmap, new_amap} = remove_empty_dead_queues(new_buffer, gmap, amap)
-        Logger.error("result: #{inspect vals}")
         {:value, {vals, contexts}, {new_buffer, new_gmap, imap, hosp, new_amap, kcounter}}
   	end
   end
 
   def handle_event({:spit, index}, {buffer, gmap, imap, hosp, amap, kcounter}) do
-    Logger.debug("Spitting...")
     msg = buffer
     |> Map.get(index)
     |> List.first
@@ -89,11 +81,8 @@ defmodule Reactivity.Processing.CombineVarWithGuarantees do
   	{:ok, :continue, {buffer, gmap, imap, nil, amap, kcounter}}
   end
   def handle_done(pid, {buffer, gmap, imap, hosp, amap, kcounter}) do
-  	Logger.error("imap: #{inspect imap}")
-  	Logger.error("pid: #{inspect pid}")
   	index = imap
     |> Map.get(pid)
-    Logger.error("index: #{inspect index}")
     new_imap = imap
     |> Map.delete(pid)
     new_amap = amap
