@@ -1,6 +1,6 @@
 defmodule Test.BQuarp.GuaranteeTest do
 	use ExUnit.Case
-	alias BQuarp.Guarantee
+	alias Reactivity.Quality.Guarantee
 
 	test "combine guarantees (1)" do
 		gss = 	[

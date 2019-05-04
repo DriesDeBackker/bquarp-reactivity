@@ -1,7 +1,7 @@
 defmodule Test.BQuarp.ContextTest do
 	use ExUnit.Case
-	alias BQuarp.Guarantee
-	alias BQuarp.Context
+	alias Reactivity.Quality.Guarantee
+	alias Reactivity.Quality.Context
 
   #@tag: disabled
   test "Combine single context in case of :fu" do

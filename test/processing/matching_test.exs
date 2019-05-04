@@ -1,6 +1,6 @@
 defmodule Test.BQuarp.MatchingTest do
   use ExUnit.Case
-  alias BQuarp.Matching
+  alias Reactivity.Processing.Matching
   require Logger
 
   #@tag :disabled

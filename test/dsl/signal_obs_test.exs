@@ -1,24 +1,24 @@
-defmodule Test.BQuarp.SignalObsTest do
-    use ExUnit.Case
-    alias BQuarp.SignalObs, as: Sobs
-    alias Observables.Obs
-    alias Observables.Subject
+defmodule Test.DSL.SignalObs do
+  use ExUnit.Case
+  alias Reactivity.DSL.SignalObs, as: Sobs
+  alias Observables.Obs
+  alias Observables.Subject
 
-    test "From observable" do
+  test "From observable" do
     testproc = self()
 
     obs = Subject.create()
 
     obs
-    |> Sobs.from_obs
+    |> Sobs.from_plain_obs
     |> Obs.map(fn v -> send(testproc, v) end)
 
-    	Subject.next(obs, :v)
+  	Subject.next(obs, :v)
     assert_receive({:v, []}, 1000, "did not get this message!")
-    end
+  end
 
-    test "To plain observable" do
-    	testproc = self()
+  test "To plain observable" do
+  	testproc = self()
 
     obs = Subject.create()
 
@@ -26,12 +26,12 @@ defmodule Test.BQuarp.SignalObsTest do
     |> Sobs.to_plain_obs
     |> Obs.map(fn v -> send(testproc, v) end)
 
-    	Subject.next(obs, {:v, :c})
+  	Subject.next(obs, {:v, :c})
     assert_receive(:v, 1000, "did not get this message!")
-    end
+  end
 
-    test "Add a context to a signal observable (1)" do
-    	testproc = self()
+  test "Add a context to a signal observable (1)" do
+  	testproc = self()
 
     obs = Subject.create()
 
@@ -43,10 +43,10 @@ defmodule Test.BQuarp.SignalObsTest do
     assert_receive({:v, [[{s, 0}]]}, 1000, "did not get this message!")
     Subject.next(obs, {:v, []})
     assert_receive({:v, [[{s, 1}]]}, 1000, "did not get this message!")
-    end
+  end
 
-    test "Remove a context from a signal observable" do
-    	testproc = self()
+  test "Remove a context from a signal observable" do
+  	testproc = self()
 
     obs = Subject.create()
 
@@ -56,10 +56,10 @@ defmodule Test.BQuarp.SignalObsTest do
 
     Subject.next(obs, {:v, [:c1, :c2, :c3, :c4]})
     assert_receive({:v, [:c1, :c2, :c4]}, 1000, "did not get this message!")
-    end
+  end
 
-    test "Keep a context of a signal observable" do
-    	testproc = self()
+  test "Keep a context of a signal observable" do
+  	testproc = self()
 
     obs = Subject.create()
 
@@ -69,10 +69,10 @@ defmodule Test.BQuarp.SignalObsTest do
 
     Subject.next(obs, {:v, [:c1, :c2, :c3, :c4]})
     assert_receive({:v, [:c3]}, 1000, "did not get this message!")
-    end
+  end
 
-    test "Set the context of a signal observable" do
-    	testproc = self()
+  test "Set the context of a signal observable" do
+  	testproc = self()
 
     obs = Subject.create()
 
@@ -84,10 +84,10 @@ defmodule Test.BQuarp.SignalObsTest do
     assert_receive({:v, [0]}, 1000, "did not get this message!")
     Subject.next(obs, {:v, [:c1, :c2, :c3, :c4]})
     assert_receive({:v, [1]}, 1000, "did not get this message!")
-    end
+  end
 
-    test "Clear the context of a signal observable" do
-    	testproc = self()
+  test "Clear the context of a signal observable" do
+  	testproc = self()
 
     obs = Subject.create()
 
@@ -97,6 +97,6 @@ defmodule Test.BQuarp.SignalObsTest do
 
     Subject.next(obs, {:v, [:c1, :c2, :c3, :c4]})
     assert_receive({:v, []}, 1000, "did not get this message!")
-    end
+  end
 
-    end
+end

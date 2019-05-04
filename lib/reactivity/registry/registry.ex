@@ -75,7 +75,7 @@ defmodule Reactivity.Registry do
 
   def init(_args) do
     table = :ets.new(:signals, [:named_table, :set, :protected])
-    {:ok, %{:table => table, :subs => MapSet.new(), :guarantee => nil}}
+    {:ok, %{:table => table, :subs => MapSet.new(), :guarantee => {:fu, 0}}}
   end
 
 

@@ -1,2 +1,3 @@
 alias Observables.{Obs, Subject}
-alias BQuarp.{Signal}
+alias Reactivity.DSL.{Signal, SignalObs}
+alias Reactivity.Registry

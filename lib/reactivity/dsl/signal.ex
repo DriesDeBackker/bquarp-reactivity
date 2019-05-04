@@ -6,7 +6,7 @@ defmodule Reactivity.DSL.Signal do
 	alias Reactivity.Processing.CombineVarWithGuarantees
 	alias Reactivity.Quality.Context
 	alias Reactivity.Quality.Guarantee
-	alias Reactivity.DSl.SignalObs, as: Sobs
+	alias Reactivity.DSL.SignalObs, as: Sobs
 	alias Reactivity.Registry
 
 	alias Observables.Obs
@@ -27,7 +27,7 @@ defmodule Reactivity.DSL.Signal do
 	end
 	def from_plain_obs(obs, cg) do
 		sig_obs = obs
-		|> Sobs.from_obs
+		|> Sobs.from_plain_obs
 		{:signal, sig_obs, []}
 		|> add_guarantee(cg)
 	end
@@ -143,7 +143,7 @@ defmodule Reactivity.DSL.Signal do
 		fobs = sobs
 		|> Sobs.to_plain_obs
 		|> Obs.filter(pred)
-		|> Sobs.from_obs
+		|> Sobs.from_plain_obs
 		|> Sobs.add_context(new_cg)
 		{:signal, fobs, [new_cg]}
 	end

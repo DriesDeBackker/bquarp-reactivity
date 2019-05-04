@@ -2,8 +2,8 @@ defmodule Connector do
 	use GenServer
 	require Logger
 
-	@port2 7777
-	@port1 6666
+	@port1 7777
+	@port2 6666
 	@multicast {127, 0, 0, 1}
 
 	def start_link(_arg) do

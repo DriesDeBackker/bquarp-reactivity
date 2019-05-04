@@ -1,6 +1,6 @@
 defmodule Test.BQuarp.SignalTest do
 	use ExUnit.Case
-	alias BQuarp.Signal
+	alias Reactivity.DSL.Signal
 	alias Observables.Obs
 	alias Observables.Subject
 
@@ -13,11 +13,11 @@ defmodule Test.BQuarp.SignalTest do
 		obs = Subject.create
 
 		signal = obs
-		|> Signal.from_obs({:g, 0})
+		|> Signal.from_plain_obs({:g, 0})
 		assert(Signal.carries_guarantee?(signal, {:g, 0}))
 
 		signal
-		|> Signal.to_obs
+		|> Signal.to_plain_obs
 		|> Obs.map(fn x -> send(testprocess, x) end)
 		
 		Subject.next(obs, :v)
@@ -28,7 +28,7 @@ defmodule Test.BQuarp.SignalTest do
 	test "add, remove, set and keep guarantees" do
 		obs = Subject.create
 		signal = obs
-		|> Signal.from_obs({:g, 0})
+		|> Signal.from_plain_obs({:g, 0})
 		|> Signal.add_guarantee({:t, 0})
 		assert(Signal.guarantees(signal) |> Enum.count == 2)
 		assert(Signal.carries_guarantee?(signal, {:g, 0}))
@@ -60,10 +60,10 @@ defmodule Test.BQuarp.SignalTest do
 
 		obs = Subject.create
 		signal = obs
-		|> Signal.from_obs({:g, 0})
+		|> Signal.from_plain_obs({:g, 0})
 		|> Signal.filter(fn x -> x > 5 end)
 		signal
-		|> Signal.to_obs
+		|> Signal.to_plain_obs
 		|> Obs.map(fn x -> send(testprocess, x) end)
 
 		Subject.next(obs, 10)
@@ -84,12 +84,12 @@ defmodule Test.BQuarp.SignalTest do
 		obs1 = Subject.create
 		obs2 = Subject.create
 		signal1 = obs1
-		|> Signal.from_obs({:t, 0})
+		|> Signal.from_plain_obs({:t, 0})
 		signal2 = obs2
-		|> Signal.from_obs({:t, 0})
+		|> Signal.from_plain_obs({:t, 0})
 		[signal1, signal2]
 		|> Signal.merge
-		|> Signal.to_obs
+		|> Signal.to_plain_obs
 		|> Obs.map(fn x -> send(testprocess, x) end)
 
 		Subject.next(obs1, :v1)
@@ -108,9 +108,9 @@ defmodule Test.BQuarp.SignalTest do
 
     # Create a range, turn into signal and scan.
     Obs.range(start, tend, 100)
-    |> Signal.from_obs
+    |> Signal.from_plain_obs
     |> Signal.scan(fn x, y -> x + y end)
-    |> Signal.to_obs
+    |> Signal.to_plain_obs
     |> Obs.each(fn v -> send(testproc, v) end)
 
     # Receive all the values.
@@ -140,7 +140,7 @@ defmodule Test.BQuarp.SignalTest do
     obs = Subject.create
 
     obs
-    |> Signal.from_obs
+    |> Signal.from_plain_obs
     |> Signal.liftapp(fn x -> x * 2 end)
     |> Signal.each(fn x -> send(testproc, x) end)
 
@@ -158,9 +158,9 @@ defmodule Test.BQuarp.SignalTest do
     obs2 = Subject.create
 
     signal1 = obs1
-    |> Signal.from_obs({:t, 0})
+    |> Signal.from_plain_obs({:t, 0})
     signal2 = obs2
-    |> Signal.from_obs({:t, 0})
+    |> Signal.from_plain_obs({:t, 0})
     [signal1, signal2]
     |> Signal.liftapp(fn x, y -> x + y end)
     |> Signal.each(fn x -> send(testproc, x) end)
@@ -192,9 +192,9 @@ defmodule Test.BQuarp.SignalTest do
     obs2 = Subject.create
 
     signal1 = obs1
-    |> Signal.from_obs({:fu, 0})
+    |> Signal.from_plain_obs({:fu, 0})
     signal2 = obs2
-    |> Signal.from_obs({:fu, 0})
+    |> Signal.from_plain_obs({:fu, 0})
     [signal1, signal2]
     |> Signal.liftapp(fn x, y -> x + y end)
     |> Signal.each(fn x -> send(testproc, x) end)
@@ -219,9 +219,9 @@ defmodule Test.BQuarp.SignalTest do
     obs2 = Subject.create
 
     signal1 = obs1
-    |> Signal.from_obs({:fu, 0})
+    |> Signal.from_plain_obs({:fu, 0})
     signal2 = obs2
-    |> Signal.from_obs({:fp, 0})
+    |> Signal.from_plain_obs({:fp, 0})
     [signal1, signal2]
     |> Signal.liftapp(fn x, y -> x + y end)
     |> Signal.each(fn x -> send(testproc, x) end)
@@ -251,9 +251,9 @@ defmodule Test.BQuarp.SignalTest do
     obs2 = Subject.create
 
     signal1 = obs1
-    |> Signal.from_obs({:fu, 0})
+    |> Signal.from_plain_obs({:fu, 0})
     signal2 = obs2
-    |> Signal.from_obs({:fu, 0})
+    |> Signal.from_plain_obs({:fu, 0})
     [signal1, signal2]
     |> Signal.liftapp(fn x, y -> x + y end)
     |> Signal.each(fn x -> send(testproc, x) end)
@@ -284,13 +284,13 @@ defmodule Test.BQuarp.SignalTest do
     hobs = Subject.create
 
     signal1 = obs1
-    |> Signal.from_obs({:fu, 0})
+    |> Signal.from_plain_obs({:fu, 0})
     signal2 = obs2
-    |> Signal.from_obs({:fu, 0})
+    |> Signal.from_plain_obs({:fu, 0})
     signal3 = obs3
-    |> Signal.from_obs({:fu, 0})
+    |> Signal.from_plain_obs({:fu, 0})
     hsignal = hobs
-    |> Signal.from_obs
+    |> Signal.from_plain_obs
     [signal1, signal2]
     |> Signal.liftapp_var(hsignal, fn xs -> Enum.sum(xs) / length(xs) end)
     |> Signal.each(fn x -> send(testproc, x) end)

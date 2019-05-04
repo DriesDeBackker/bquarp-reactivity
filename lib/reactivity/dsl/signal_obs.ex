@@ -1,4 +1,4 @@
-defmodule Reactivity.DSl.SignalObs do
+defmodule Reactivity.DSL.SignalObs do
 	@moduledoc false
 	alias Observables.Obs
 	alias Reactivity.Quality.Context
