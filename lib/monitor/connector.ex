@@ -12,7 +12,7 @@ defmodule Connector do
 
 	def init([]) do
 		Logger.debug("Registering the registry globally as #{Node.self}")
-		:global.register_name(Node.self, Process.whereis(BQuarp.Registry))
+		:global.register_name(Node.self, Process.whereis(Reactivity.Registry))
 		{:ok, s} = :gen_udp.open(@port1, [
 			:binary,
 			{:reuseaddr, true},
@@ -50,7 +50,7 @@ defmodule Connector do
   	Logger.info("disovered #{hostname}")
   	:global.sync()
   	hostregistry = :global.whereis_name(hostname)
-  	BQuarp.Registry.subscribe(hostregistry)
-  	GenServer.call(hostregistry, {:subscribe, Process.whereis(BQuarp.Registry)})
+  	Reactivity.Registry.subscribe(hostregistry)
+  	GenServer.call(hostregistry, {:subscribe, Process.whereis(Reactivity.Registry)})
 	end
 end

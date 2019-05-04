@@ -1,8 +1,8 @@
-defmodule BQuarp.CombineWithGuarantees do
+defmodule Reactivity.Processing.CombineWithGuarantees do
   @moduledoc false
   use Observables.GenObservable
-  alias BQuarp.Matching
-  alias BQuarp.Guarantee
+  alias Reactivity.Processing.Matching
+  alias Reactivity.Quality.Guarantee
   require Logger
 
   def init([imap, gmap]) do

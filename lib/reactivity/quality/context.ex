@@ -1,6 +1,11 @@
-defmodule BQuarp.Context do
+defmodule Reactivity.Quality.Context do
+	@moduledoc """
+	Essential operations on message contexts.
+	For every guarantee, the functions combine, penalty and transform need to be implemented.
+	Guarantees with obvious context-progression (e.g. with counters) should implement new_context_obs.
+	"""
 	alias Observables.Obs
-	alias BQuarp.Guarantee
+	alias Reactivity.Quality.Guarantee
 	require Logger
 
 	################################

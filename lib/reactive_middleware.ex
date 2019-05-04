@@ -5,7 +5,7 @@ defmodule ReactiveMiddleware.Application do
     import Supervisor.Spec, warn: false
     # List all child processes to be supervised
     children = [
-      supervisor(BQuarp.Registry, [[]]),
+      supervisor(Reactivity.Registry, [[]]),
       supervisor(Connector, [[]]),
     ]
     # See https://hexdocs.pm/elixir/Supervisor.html

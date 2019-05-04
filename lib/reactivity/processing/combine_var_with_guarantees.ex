@@ -1,9 +1,9 @@
-defmodule CombineVarWithGuarantees do
+defmodule Reactivity.Processing.CombineVarWithGuarantees do
   @moduledoc false
   use Observables.GenObservable
   alias Observables.Obs
-  alias BQuarp.Matching
-  alias BQuarp.Guarantee
+  alias Reactivity.Processing.Matching
+  alias Reactivity.Quality.Guarantee
   require Logger
 
   def init([qmap, gmap, imap, hosp]) do
@@ -12,7 +12,7 @@ defmodule CombineVarWithGuarantees do
     kcounter = imap
     |> Map.values
     |> length
-    {is, qs} = qmap
+    {is, _qs} = qmap
     |> Enum.unzip
     amap = is
     |> Enum.zip(List.duplicate(true, length(is)))

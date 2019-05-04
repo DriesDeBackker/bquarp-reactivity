@@ -1,9 +1,13 @@
-defmodule BQuarp.Signal do
-	alias BQuarp.CombineWithGuarantees
-	alias BQuarp.Context
-	alias BQuarp.Guarantee
-	alias BQuarp.SignalObs, as: Sobs
-	alias BQuarp.Registry
+defmodule Reactivity.DSL.Signal do
+	@moduledoc """
+	The DSL for distributed reactive programming.
+	"""
+	alias Reactivity.Processing.CombineWithGuarantees
+	alias Reactivity.Processing.CombineVarWithGuarantees
+	alias Reactivity.Quality.Context
+	alias Reactivity.Quality.Guarantee
+	alias Reactivity.DSl.SignalObs, as: Sobs
+	alias Reactivity.Registry
 
 	alias Observables.Obs
   alias Observables.GenObservable
@@ -12,11 +16,16 @@ defmodule BQuarp.Signal do
 
 	@doc """
 	Creates a signal from a plain observable.
-	Attaches the given consistency guarantee to it if provided,
-	otherwise attaches :fu as the default consistency guarantee
-	(fifo with update semantics: one could consider this to be 'no guarantee')
+
+	Attaches the given consistency guarantee to it if provided.
+	otherwise attaches the globally defined consistency guarantee,
+	which is fifo with update semantics ({:fu, 0}) by default.
 	"""
-	def from_obs(obs, cg \\ {:fu, 0}) do
+	def from_plain_obs(obs) do
+		cg = Registry.get_guarantee
+		from_plain_obs(obs, cg)
+	end
+	def from_plain_obs(obs, cg) do
 		sig_obs = obs
 		|> Sobs.from_obs
 		{:signal, sig_obs, []}
@@ -24,21 +33,37 @@ defmodule BQuarp.Signal do
 	end
 
 	@doc """
+	Creates a signal from a signal observable, tags it with the given guarantees.
+
+	The assumption here is that the contexts of the observable have already been attached.
+	The primitive can be used for guarantees with non-obvious contexts (other than e.g. counters)
+	the developer might come up with.
+	"""
+	def from_signal_obs(sobs, cgs \\ [{:fu, 0}]) do
+		{:signal, sobs, cgs}
+	end
+
+	@doc """
 	Transforms a signal into a plain observable.
 	"""
-	def to_obs({:signal, obs, _cgs}) do
-		obs
+	def to_plain_obs({:signal, sobs, _cgs}) do
+		sobs
 		|> Sobs.to_plain_obs
+	end
+
+	def to_signal_obs({:signal, sobs, _cgs}) do
+		sobs
 	end
 
 	@doc """
 	Attaches a new consistency guarantee to the signal.
-	The signal may already possess a consistency guarantee.
+
+	The signal may already possess one or more consistency guarantees.
 	"""
-	def add_guarantee({:signal, obs, cgs}, cg) do
-		new_obs = obs
+	def add_guarantee({:signal, sobs, cgs}, cg) do
+		new_sobs = sobs
 		|> Sobs.add_context(cg)
-		{:signal, new_obs, cgs ++ [cg]}
+		{:signal, new_sobs, cgs ++ [cg]}
 	end
 
 	@doc """
@@ -47,10 +72,10 @@ defmodule BQuarp.Signal do
 	This can be considered the creation of a new source signal
 	from another signal in a stratified dependency graph.
 	"""
-	def set_guarantee({:signal, obs, _cgs}, cg) do
-		new_obs = obs
+	def set_guarantee({:signal, sobs, _cgs}, cg) do
+		new_sobs = sobs
 		|> Sobs.set_context(cg)
-		{:signal, new_obs, [cg]}
+		{:signal, new_sobs, [cg]}
 	end
 
 	@doc """
@@ -61,44 +86,44 @@ defmodule BQuarp.Signal do
 	@doc """
 	Checks if the given signal carries the given guarantee.
 	"""
-	def carries_guarantee?({:signal, _obs, cgs}, cg) do
+	def carries_guarantee?({:signal, _sobs, cgs}, cg) do
 		cgs
 		|> Enum.any?(fn x -> x == cg end)
 	end
 
 	@doc """
-	Removes the given guarantee from the given signal if present.
-	Leaves the signal alone otherwise.
+	Removes the given guarantee from the given signal.
+	Leaves the signal alone if the guarantee is not present.
 	"""
-	def remove_guarantee({:signal, obs, cgs}, {cgt, _cgm}) do
-		remove_guarantee({:signal, obs, cgs}, cgt)
+	def remove_guarantee({:signal, sobs, cgs}, {cgt, _cgm}) do
+		remove_guarantee({:signal, sobs, cgs}, cgt)
 	end
-	def remove_guarantee({:signal, obs, cgs}, cgt) do
+	def remove_guarantee({:signal, sobs, cgs}, cgt) do
 		i = cgs
 		|> Enum.find_index(fn {xt, _xm} -> cgt == xt end)
 		new_cgs = cgs
 		|> List.delete_at(i)
-		new_obs = obs
+		new_sobs = sobs
 		|> Sobs.remove_context(i)
-		{:signal, new_obs, new_cgs}
+		{:signal, new_sobs, new_cgs}
 	end
 
 	@doc """
 	Keeps the given guarantee as the only guarantee of the given signal.
 	Removes all other guarantees.
 	"""
-	def keep_guarantee({:signal, obs, cgs}, {cgt, _cgm}) do
-		keep_guarantee({:signal, obs, cgs}, cgt)
+	def keep_guarantee({:signal, sobs, cgs}, {cgt, _cgm}) do
+		keep_guarantee({:signal, sobs, cgs}, cgt)
 	end
-	def keep_guarantee({:signal, obs, cgs}, cgt) do
+	def keep_guarantee({:signal, sobs, cgs}, cgt) do
 		i = cgs
 		|> Enum.find_index(fn {xt, _xm} -> cgt == xt end)
 		cg = cgs
 		|> Enum.at(i)
 		new_cgs = [cg]
-		new_obs = obs
+		new_sobs = sobs
 		|> Sobs.keep_context(i)
-		{:signal, new_obs, new_cgs}
+		{:signal, new_sobs, new_cgs}
 	end
 
 	@doc """
@@ -114,18 +139,17 @@ defmodule BQuarp.Signal do
   discarding the previous ones. Thus, filtering in this way can be considered as
   the creation of a new source signal for this guarantee in a stratified dependency graph
   """
-	def filter({:signal, obs, _cg}, func, new_cg) do
-		fobs = obs
+	def filter({:signal, sobs, _cg}, pred, new_cg) do
+		fobs = sobs
 		|> Sobs.to_plain_obs
-		|> Obs.filter(func)
+		|> Obs.filter(pred)
 		|> Sobs.from_obs
 		|> Sobs.add_context(new_cg)
 		{:signal, fobs, [new_cg]}
 	end
-	#TODO: rewrite...
-	def filter({:signal, obs, cgs}, func) do
-		fobs = obs
-		|> Obs.filter(fn {v, _cs} -> func.(v) end)
+	def filter({:signal, sobs, cgs}, pred) do
+		fobs = sobs
+		|> Obs.filter(fn {v, _cs} -> pred.(v) end)
 		{:signal, fobs, cgs}
 	end
 
@@ -141,16 +165,16 @@ defmodule BQuarp.Signal do
 	the creation of a new source signal for this guarantee in a stratified dependency graph
 	"""
 	def merge(signals, new_cg) do
-		obss = signals
-		|> Enum.map(fn {:signal, obs, _cgs} -> obs end)
-		mobs = Obs.merge(obss)
+		sobss = signals
+		|> Enum.map(fn {:signal, sobs, _cgs} -> sobs end)
+		mobs = Obs.merge(sobss)
 		|> Sobs.set_context(new_cg)
 		{:signal, mobs, [new_cg]}
 	end
 	def merge([{:signal, _obs, cgs} | _st] = signals) do
-		obss = signals
-		|> Enum.map(fn {:signal, o, _c} -> o end)
-		mobs = Obs.merge(obss)
+		sobss = signals
+		|> Enum.map(fn {:signal, sobs, _cgs} -> sobs end)
+		mobs = Obs.merge(sobss)
 		{:signal, mobs, cgs}
 	end
 
@@ -161,11 +185,12 @@ defmodule BQuarp.Signal do
   Enum.scan(1..10, fn(x,y) -> x + y end) 
   => [1, 3, 6, 10, 15, 21, 28, 36, 45, 55]
   """
-	def scan({:signal, obs, cgs}, func, default \\ nil) do
-		{vobs, cobs} = obs
-		|> Obs.unzip
-		svobs = vobs
+	def scan({:signal, sobs, cgs}, func, default \\ nil) do
+		svobs = sobs
+		|> Sobs.to_plain_obs
 		|> Obs.scan(func, default)
+		cobs = sobs
+		|> Sobs.to_context_obs
 		nobs = svobs
 		|> Obs.zip(cobs)
 		{:signal, nobs, cgs}
@@ -175,72 +200,119 @@ defmodule BQuarp.Signal do
 	Applies a procedure to the values of a signal without changing them.
 	Generally used for side effects.
 	"""
-	def each({:signal, obs, cgs}, proc) do
-		{vobs, _cobs} = obs
-		|> Obs.unzip
-		vobs
+	def each({:signal, sobs, cgs}, proc) do
+		sobs
+		|> Sobs.to_plain_obs
 		|> Obs.each(proc)
-		{:signal, obs, cgs}
+		{:signal, sobs, cgs}
 	end
 
 	@doc """
 	Lifts and applies an ordinary function to one or more signals
+
 	Values of the input signals are produced into output using this function
-	depending on the consistency guarantees of the signals
+	Output is only created if a newly received message can be combined with the rest of the buffer
+	under the consistency guarantees of the different signals.
+
+	The resulting consistency guarantee of the output signal is a combination of the guarantees of the input signals.
+
+	When combining signals:
+
+	* With update semantics:
+		- They have their last values kept as state until a more recent one is used.
+		- Each value is regarded as an update that may trigger a new output.
+		- This is similar to 'combining latest' of observables in Reactive Extensions.
+	* With propagate semantics:
+	  - They have their used values kept only ntil they can be combined,
+			at which point they are removed so they can't be used more than once.
+		- Each value is regarded as a value in a (time-series) data stream to be combined and propagated.
+		- This is similar to zipping of observables in Reactive Extensions.
+	* With both update as well as propagate semantics:
+		- New output is triggered by propagate-signals in steady state.
+		- New input for update signals is kept as state to be combined with.
+		- The first value of an update signal can trigger a series of outputs
+		  if there is a propagate history that has been waiting for this value to combine.
+		- This is similar to 'combining latest silent' (with buffered propagation) in Reactive Extensions
+		   (specifically in the Observables Extendend library only)
 
 	E.g.:
+
 	s1 with {:fu, _}: 5 --------------------------------- 1 -->
+
 	s2 with {:fu, _}: ------------- 3 --------- 5 ------------>
+
 	s3 = s1 + s2 			-------------- 8 --------- 10 ------ 6 ->
-		(with {:fu, _})
+
 
 	E.g.:
+
 	a with {:fu, _}:  5 ---------------------------------- 1 ->
+
 	b with {:fp, _}:  ------------- 3 ---- 5 ----------------->
+
 	c = a + b			    -------------- 8 ---- 10 --------------->
-		(with {:fp, _}, {:fu, _})
+
 
 	E.g.:
+
 	a with {:fp, _}:  5 --------------------------------- 1 -->
+
 	b with {:fp, _}:  ------------- 3 ---- 5 ----------------->
+
 	c = a + b			    -------------- 8 ------------------- 6 ->
-		(with {:fp, _})
+
 
 	E.g.:
+
 	a with {:t, 0}:   5(2) ------- 3(3} ------------ 1(4) ----------->
+
 	b with {:t, 0}:   ------ 4(1) ---------- 5(2) ------------ 3(3)-->
+
 	c = a + b		      ----------------------- 10(2) ------------6(3)->
-		(with {:t, 0})
+
 
 	E.g.:
-	a with {:c, 0}:  5(x2,y2) -------------------------------------- 2(x3,y3) ---->
-	b with {:c, 0}:  -------- 3(x1) ---- 3(x2) --- 8(x3) --- 7(x4) --------------->
-	d = a + b: 	     -------------------- 8(..) --- 13(..) ---12(..)--9(..)------->
-		(with {:c, 0})
+
+	a with {:c, 0}:  5(x2,y2) ------------------------------------- 2(x3,y3)
+
+	b with {:c, 0}:  -------- 3(x1) --- 3(x2) -- 8(x3) -- 7(x4) ----------->
+
+	d = a + b: 	     ------------------- 8(..) -- 13(..) -- 12(..) --- 9(..)
+
 
 	E.g.:
-	a with {:g, 0}:  5(x2) ------------------------------------------- 2(x3) --->
-	b with {:g, 0}:  ------ 3(x1) ------- 3(x2) --- 8(x3) ---------------------->
-	c with {:g, 0}:  ------------- 7(y5) ------------------ 4(y6)--------------->
-	d = a + b + c: 	 --------------------- 15(x2,y5) --------12(x2,y6)--14(x3,y6)
-		(with {:g, 0})
+
+	a with {:g, 0}:  5(x2) -------------------------------------- 2(x3) --->
+
+	b with {:g, 0}:  ----- 3(x1) ------ 3(x2) -- 8(x3) -------------------->
+
+	c with {:g, 0}:  ------------ 7(y5) -------------- 4(y6)--------------->
+
+	d = a + b + c: 	 ------------------- 15(x2,y5) -----12(x2,y6)--14(x3,y6)
+
 
 	E.g.:
-	TODO: implement it according to these semantics
-				(with propagation values catching up once update values received from all)
-	a with {:g, 0}:  5(x2) ------------------------------------------- 2(x3) --->
-	b with {:g, 0}:  ------ 3(x1) ------- 3(x2) --- 8(x3) ---------------------->
-	c with {:t, 0}:  ------------- 7(5) ------------------ 4(6)----------------->
-	d = a + b + c: 	 --------------------- 15(x2,5) --------12(x2,6)------------>
-		(with {:g, 0}, {:t, 0})
+
+	a with {:g, 0}:  5(x2) -------------------------------------- 2(x3) --->
+
+	b with {:g, 0}:  ----- 3(x1) ----- 3(x2) --- 8(x3) -------------------->
+
+	c with {:t, 0}:  ------------ 7(5) ---------------- 4(6)--------------->
+
+	d = a + b + c: 	 ------------------ 15(x2,5) --------12(x2,6)---------->
+
+	(with the resulting guarantees of d being: {:g, 0}, {:t, 0})
+
 
 	E.g.:
-	TODO: implement it according to these semantics
-				(with propagation values catching up once update values received from all)
-	a with {:g, 0}, {:t, 0}:  5(x2,1) -------------------- 7(x2,2)-------- 6(x2,3)->
-	b with {:g, 0}:  					-------- 3(x1) -- 4(x2) ------------- 7(x3) --------->
-	d = a + b: 	     					------------------ 9(x2,1) -- 11(x2,2) ------ 10(x2,3)
-		(with {:g, 0}, {:t, 0})
+
+	a with {:g, 0}, {:t, 0}:  5(x2,1) ------------------ 7(x2,2)------- 6(x2,3)->
+
+	b with {:g, 0}:  					------ 3(x1) -- 4(x2) ------------ 7(x3) --------->
+
+	d = a + b: 	     					---------------- 9(x2,1) -- 11(x2,2) ----- 10(x2,3)
+
+	(with the resulting guarantees of d being: {:g, 0}, {:t, 0})
 	"""
 	def liftapp({:signal, _, _} = s, func) do
 		liftapp([s], func)
@@ -249,17 +321,17 @@ defmodule BQuarp.Signal do
 		inds = 0..(length(signals)-1)
 
 		# Tag each value from an observee with its respective index
-		obss = signals
-		|> Enum.map(fn {:signal, obs, _cgs} -> obs end)
-    tagged = Enum.zip(obss, inds)
-    |> Enum.map(fn {obs, index} -> 
-    	obs
+		sobss = signals
+		|> Enum.map(fn {:signal, sobs, _cgs} -> sobs end)
+    tagged = Enum.zip(sobss, inds)
+    |> Enum.map(fn {sobs, index} -> 
+    	sobs
       #|> Observables.Obs.inspect()
       |> Obs.map(fn msg -> {:newvalue, index, msg} end) end)
 
     # Create the arguments
 		gs = signals
-		|> Enum.map(fn {:signal, _obs, cgs} -> cgs end)
+		|> Enum.map(fn {:signal, _sobs, cgs} -> cgs end)
 		gmap = inds
 		|> Enum.zip(gs)
 		|> Map.new
@@ -301,6 +373,7 @@ defmodule BQuarp.Signal do
 	to a list of signals that may be subject to change.
 
 	Takes
+
 	* A list of signals, each carrying the same guarantee g (can be plural).
 	* A higher order signal carrying new signals of guarantee g.
 	* A function operating on lists of any size.
@@ -310,10 +383,10 @@ defmodule BQuarp.Signal do
 
 		# Tag each value from an observee with its respective index
 		tobss = ss
-		|> Stream.map(fn {:signal, obs, _cgs} -> obs end)
+		|> Stream.map(fn {:signal, sobs, _cgs} -> sobs end)
     |> Stream.zip(inds)
-    |> Enum.map(fn {obs, ind} -> 
-    	obs
+    |> Enum.map(fn {sobs, ind} -> 
+    	sobs
       |> Obs.map(fn msg -> {:newvalue, ind, msg} end) end)
 
     # Unwrap each signal from the higher-order signal and tag it with :newsignal.
@@ -322,7 +395,7 @@ defmodule BQuarp.Signal do
 
     # Create the arguments
 		gs = ss
-		|> Enum.map(fn {:signal, _obs, cgs} -> cgs end)
+		|> Enum.map(fn {:signal, _sobs, cgs} -> cgs end)
 		gmap = inds
 		|> Enum.zip(gs)
 		|> Map.new
@@ -388,10 +461,10 @@ defmodule BQuarp.Signal do
 	@doc """
 	Inspects the given signal by printing its output values to the console.
 	"""
-	def inspect({:signal, obs, cgs}) do
-		obs
+	def inspect({:signal, sobs, cgs}) do
+		sobs
 		|> Obs.inspect
-		{:signal, obs, cgs}
+		{:signal, sobs, cgs}
 	end
 
 end

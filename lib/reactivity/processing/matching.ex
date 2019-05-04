@@ -1,11 +1,13 @@
-defmodule BQuarp.Matching do
-  alias BQuarp.Context
-  alias BQuarp.Guarantee
+defmodule Reactivity.Processing.Matching do
+  @moduledoc false
+  alias Reactivity.Quality.Context
+  alias Reactivity.Quality.Guarantee
   require Logger
 
   @doc """
-  Matches the message with the contents of the buffer if possible,
-  respecting all consistency guarantees.
+  Matches the message with the contents of the buffer if possible, 
+  respecting all consistency guarantees
+  Dispenses with old messages to create a new buffer.
 
   Takes 
     * an input buffer 
@@ -94,6 +96,10 @@ defmodule BQuarp.Matching do
     new_b
   end
 
+
+  #######################
+  # MATCHING ALGORITHMS #
+  #######################
 
   def imatch([], _fgs, {_v, c}, mcgs), do: {:ok, [], Context.combine([c], [mcgs]), []}
   def imatch(fqs, fgs, msg, mcgs) do
@@ -236,6 +242,10 @@ defmodule BQuarp.Matching do
       imatch_(qls, {mls, [{mc, :bad} | mns]}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs)
     end
   end
+
+  ###########
+  # HELPERS #
+  ###########
 
   defp cut_tuples(split_queues) do
     cleanup = 
