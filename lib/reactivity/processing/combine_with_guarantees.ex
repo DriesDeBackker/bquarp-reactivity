@@ -2,43 +2,62 @@ defmodule Reactivity.Processing.CombineWithGuarantees do
   @moduledoc false
   use Observables.GenObservable
   alias Reactivity.Processing.Matching
-  alias Reactivity.Quality.Guarantee
+
   require Logger
 
-  def init([imap, gmap]) do
+  def init([imap, tmap, gmap, rtype]) do
     Logger.debug("CombineWithGuarantee: #{inspect(self())}")
-    {:ok, {:buffer, imap, :guarantees, gmap}}
+    {:ok, {:buffer, imap, :types, tmap, :guarantees, gmap, :result, rtype}}
   end
 
-  def handle_event({:newvalue, index, msg}, {:buffer, buffer, :guarantees, gss}) do
-  	updated_buffer = %{buffer | index => Map.get(buffer, index) ++ [msg]}
-  	case Matching.match(updated_buffer, msg, index, gss) do
+  def handle_event(
+        {:newvalue, index, msg},
+        {:buffer, buffer, :types, tmap, :guarantees, gmap, :result, rtype}
+      ) do
+    updated_buffer = %{buffer | index => Map.get(buffer, index) ++ [msg]}
+
+    case Matching.match(updated_buffer, msg, index, tmap, gmap) do
       :nomatch ->
-        {:novalue, {:buffer, updated_buffer, :guarantees, gss}}
+        {:novalue, {:buffer, updated_buffer, :types, tmap, :guarantees, gmap, :result, rtype}}
+
       {:ok, match, contexts, new_buffer} ->
-        {vals, _contextss} = match
-        |> Enum.unzip
-        if first_value?(index, buffer) 
-         and update?(index, gss)
-         and any_propagate?(gss) do
+        {vals, _contextss} =
+          match
+          |> Enum.unzip()
+
+        if first_value?(index, buffer) and
+             Map.get(tmap, index) == :behaviour and
+             rtype == :event_stream do
           Process.send(self(), {:event, {:spit, index}}, [])
         end
-        {:value, {vals, contexts}, {:buffer, new_buffer, :guarantees, gss}}
-  	end
+
+        {:value, {vals, contexts},
+         {:buffer, new_buffer, :types, tmap, :guarantees, gmap, :result, rtype}}
+    end
   end
 
-  def handle_event({:spit, index}, {:buffer, buffer, :guarantees, gss}) do
-    msg = buffer
-    |> Map.get(index)
-    |> List.first
-    case Matching.match(buffer, msg, index, gss) do
+  def handle_event(
+        {:spit, index},
+        {:buffer, buffer, :types, tmap, :guarantees, gmap, :result, rtype}
+      ) do
+    msg =
+      buffer
+      |> Map.get(index)
+      |> List.first()
+
+    case Matching.match(buffer, msg, index, tmap, gmap) do
       :nomatch ->
-        {:novalue, {:buffer, buffer, :guarantees, gss}}
+        {:novalue, {:buffer, buffer, :types, tmap, :guarantees, gmap, :result, rtype}}
+
       {:ok, match, contexts, new_buffer} ->
-        {vals, _contextss} = match
-        |> Enum.unzip
+        {vals, _contextss} =
+          match
+          |> Enum.unzip()
+
         Process.send(self(), {:event, {:spit, index}}, [])
-        {:value, {vals, contexts}, {:buffer, new_buffer, :guarantees, gss}}
+
+        {:value, {vals, contexts},
+         {:buffer, new_buffer, :types, tmap, :guarantees, gmap, :result, rtype}}
     end
   end
 
@@ -50,21 +69,6 @@ defmodule Reactivity.Processing.CombineWithGuarantees do
   defp first_value?(index, buffer) do
     buffer
     |> Map.get(index)
-    |> Enum.empty?
+    |> Enum.empty?()
   end
-
-  defp update?(index, gss) do
-    gss
-    |> Map.get(index)
-    |> Guarantee.semantics
-    == :update
-  end
-
-  defp any_propagate?(gss) do
-    gss
-    |> Map.values
-    |> Enum.map(fn gs -> Guarantee.semantics(gs) end)
-    |> Enum.any?(fn sem -> sem == :propagate end)
-  end
-
 end

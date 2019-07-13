@@ -75,12 +75,11 @@ defmodule Reactivity.Registry do
 
   def init(_args) do
     table = :ets.new(:signals, [:named_table, :set, :protected])
-    {:ok, %{:table => table, :subs => MapSet.new(), :guarantee => {:fu, 0}}}
+    {:ok, %{:table => table, :subs => MapSet.new(), :guarantee => nil}}
   end
 
-
   def handle_cast(m, state) do
-    Logger.debug "Cast: #{inspect m}"
+    Logger.debug("Cast: #{inspect(m)}")
     {:noreply, state}
   end
 
@@ -98,7 +97,7 @@ defmodule Reactivity.Registry do
   def handle_call({:get, name}, _from, %{:table => t} = state) do
     case :ets.lookup(t, name) do
       [{^name, val}] -> {:reply, {:ok, val}, state}
-      []             -> {:reply, {:error, "not found"}, state}
+      [] -> {:reply, {:error, "not found"}, state}
     end
   end
 
@@ -123,7 +122,7 @@ defmodule Reactivity.Registry do
   end
 
   def handle_call({:subscribe, pid}, _from, %{:subs => ss} = state) do
-    Logger.debug "Adding subscription for #{inspect pid}"
+    Logger.debug("Adding subscription for #{inspect(pid)}")
     bring_up_to_speed(pid, state)
     {:reply, :ok, %{state | :subs => MapSet.put(ss, pid)}}
   end
@@ -133,12 +132,12 @@ defmodule Reactivity.Registry do
   end
 
   def handle_call(m, from, state) do
-    Logger.debug "Call: #{inspect m} from #{inspect from}"
+    Logger.debug("Call: #{inspect(m)} from #{inspect(from)}")
     {:reply, :ok, state}
   end
 
   def handle_info(m, state) do
-    Logger.debug "Info: #{inspect m}"
+    Logger.debug("Info: #{inspect(m)}")
     {:noreply, state}
   end
 
@@ -148,7 +147,7 @@ defmodule Reactivity.Registry do
 
   defp publish_new_signal(signal, name, %{:subs => ss}) do
     ss
-    |> Enum.map(fn(sub) -> GenServer.call(sub, {:new_signal, signal, name}) end)
+    |> Enum.map(fn sub -> GenServer.call(sub, {:new_signal, signal, name}) end)
   end
 
   defp bring_up_to_speed(new_sub, %{:table => t}) do
@@ -158,7 +157,6 @@ defmodule Reactivity.Registry do
 
   defp publish_new_guarantee(%{subs: subs, guarantee: guarantee}) do
     subs
-    |> Enum.map(fn(sub) -> GenServer.call(sub, {:new_guarantee, guarantee}) end)
+    |> Enum.map(fn sub -> GenServer.call(sub, {:new_guarantee, guarantee}) end)
   end
-
 end

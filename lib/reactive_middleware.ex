@@ -6,12 +6,12 @@ defmodule ReactiveMiddleware.Application do
     # List all child processes to be supervised
     children = [
       supervisor(Reactivity.Registry, [[]]),
-      supervisor(Connector, [[]]),
+      supervisor(Connector, [[]])
     ]
+
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Middleware.Supervisor]
     Supervisor.start_link(children, opts)
   end
-
 end

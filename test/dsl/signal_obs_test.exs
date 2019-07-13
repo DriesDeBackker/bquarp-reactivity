@@ -10,28 +10,28 @@ defmodule Test.DSL.SignalObs do
     obs = Subject.create()
 
     obs
-    |> Sobs.from_plain_obs
+    |> Sobs.from_plain_obs()
     |> Obs.map(fn v -> send(testproc, v) end)
 
-  	Subject.next(obs, :v)
+    Subject.next(obs, :v)
     assert_receive({:v, []}, 1000, "did not get this message!")
   end
 
   test "To plain observable" do
-  	testproc = self()
+    testproc = self()
 
     obs = Subject.create()
 
     obs
-    |> Sobs.to_plain_obs
+    |> Sobs.to_plain_obs()
     |> Obs.map(fn v -> send(testproc, v) end)
 
-  	Subject.next(obs, {:v, :c})
+    Subject.next(obs, {:v, :c})
     assert_receive(:v, 1000, "did not get this message!")
   end
 
   test "Add a context to a signal observable (1)" do
-  	testproc = self()
+    testproc = self()
 
     obs = Subject.create()
 
@@ -46,7 +46,7 @@ defmodule Test.DSL.SignalObs do
   end
 
   test "Remove a context from a signal observable" do
-  	testproc = self()
+    testproc = self()
 
     obs = Subject.create()
 
@@ -59,7 +59,7 @@ defmodule Test.DSL.SignalObs do
   end
 
   test "Keep a context of a signal observable" do
-  	testproc = self()
+    testproc = self()
 
     obs = Subject.create()
 
@@ -72,7 +72,7 @@ defmodule Test.DSL.SignalObs do
   end
 
   test "Set the context of a signal observable" do
-  	testproc = self()
+    testproc = self()
 
     obs = Subject.create()
 
@@ -87,16 +87,15 @@ defmodule Test.DSL.SignalObs do
   end
 
   test "Clear the context of a signal observable" do
-  	testproc = self()
+    testproc = self()
 
     obs = Subject.create()
 
     obs
-    |> Sobs.clear_context
+    |> Sobs.clear_context()
     |> Obs.map(fn v -> send(testproc, v) end)
 
     Subject.next(obs, {:v, [:c1, :c2, :c3, :c4]})
     assert_receive({:v, []}, 1000, "did not get this message!")
   end
-
 end

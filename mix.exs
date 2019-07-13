@@ -4,7 +4,7 @@ defmodule BQuarp.MixProject do
   def project do
     [
       app: :bquarp,
-      version: "0.1.0",
+      version: "0.3.1",
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -17,7 +17,7 @@ defmodule BQuarp.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      mod: {ReactiveMiddleware.Application, []},
+      mod: {ReactiveMiddleware.Application, []}
     ]
   end
 
@@ -25,15 +25,14 @@ defmodule BQuarp.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.19", only: :dev},
-      {:observables_extended, "~> 0.2.0"}
+      {:observables_extended, "~> 0.3.2"}
     ]
   end
 
   defp description() do
-    "A library for distributed reactive programming with flexible consistency guarantees drawing from Quarp.
-    Features fifo, causality, glitch-freedom and logical-clock difference as guarantees."
+    "A library for distributed reactive programming with flexible consistency guarantees drawing from QUARP and Rx..
+    Features the familiar behaviours and event streams in the spirit of FRP."
   end
-
 
   defp package() do
     [
@@ -45,5 +44,5 @@ defmodule BQuarp.MixProject do
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/DriesDeBackker/bquarp-reactivity.git"}
     ]
-end
+  end
 end
