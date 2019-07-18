@@ -4,6 +4,8 @@ A library for Distributed Reactive Programming (DRP) with flexible consistency g
 Features the familiar behaviours and event streams in the spirit of FRP as two signal abstractions.
 Provides fifo (absence of guarantee), causality, glitch-freedom and time-synchronization (i.e. clock difference restriction).
 
+Offers convenient deployment of small reactive programs to nodes in the network.
+
 Generalizes and adapts Quarp to:
 * Enable FRP with Event Streams an Behaviours, complete with language primitives such as Merge and Filter for Event Streams and primitives enabling the reactivity associated with the interaction between Event Streams and Behaviours, such as Switch or Until.
 * Prevent QUARP's proneness for live-locking when enforcing guarantees with a time aspect.
@@ -29,7 +31,7 @@ by adding `bquarp` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:bquarp, "~> 0.3.1"}
+    {:bquarp, "~> 0.4.1"}
   ]
 end
 ```
