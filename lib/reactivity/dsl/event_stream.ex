@@ -193,6 +193,76 @@ defmodule Reactivity.DSL.EventStream do
   end
 
   @doc """
+  Delays each produced item by the given interval.
+  """
+  def delay({:event_stream, sobs, cgs}, interval) do
+    dobs = 
+      sobs
+      |> Obs.delay(interval)
+    {:event_stream, dobs, cgs}
+  end
+
+  @doc """
+  Filters out values that have already been produced at some point.
+
+  If no Guarantee is provided, it does not alter the Event Stream Messages.
+  The consequences of using this operator in this way are left to the developer.
+
+  If however a Guarantee is provided, it is attached to the resulting Event Stream as its new Guarantee,
+  replacing any previous ones. This is reflected in the Message Contexts.
+  This can be considered to be the creation of a new source Signal 
+  with the given Guarantee in a stratified dependency graph.
+  """
+  def distinct({:event_stream, sobs, cgs}, new_cg) do
+    dsobs =
+      sobs
+      |> Sobs.to_plain_obs()
+      |> Obs.distinct(fn(x,y) -> x == y end)
+      |> Sobs.from_plain_obs()
+      |> Sobs.add_context(new_cg)
+
+    {:event_stream, dsobs, [new_cg]}
+  end
+
+ def distinct({:event_stream, sobs, cgs}) do
+    dsobs =
+      sobs
+      |> Obs.distinct(fn({v1, _cs1}, {v2, _cs2}) -> v1 == v2 end)
+
+    {:event_stream, dsobs, cgs}
+  end
+
+  @doc """
+  Filters out values that are equal to the most recently produced value.
+
+  If no Guarantee is provided, it does not alter the Event Stream Messages.
+  The consequences of using this operator in this way are left to the developer.
+
+  If however a Guarantee is provided, it is attached to the resulting Event Stream as its new Guarantee,
+  replacing any previous ones. This is reflected in the Message Contexts.
+  This can be considered to be the creation of a new source Signal 
+  with the given Guarantee in a stratified dependency graph.
+  """
+  def novel({:event_stream, sobs, cgs}, new_cg) do
+    nsobs =
+      sobs
+      |> Sobs.to_plain_obs()
+      |> Obs.novel(fn(x,y) -> x == y end)
+      |> Sobs.from_plain_obs()
+      |> Sobs.add_context(new_cg)
+
+    {:event_stream, nsobs, [new_cg]}
+  end
+
+ def novel({:event_stream, sobs, cgs}) do
+    nsobs =
+      sobs
+      |> Obs.novel(fn({v1, _cs1}, {v2, _cs2}) -> v1 == v2 end)
+
+    {:event_stream, nsobs, cgs}
+  end
+
+  @doc """
   Applies a procedure to the values of an Event Stream without changing them.
   Generally used for side effects.
   """

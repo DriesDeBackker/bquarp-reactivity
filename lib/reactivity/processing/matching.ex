@@ -27,7 +27,7 @@ defmodule Reactivity.Processing.Matching do
   """
   def match(b, msg, i, tmap, gmap) do
     {fqs, fks, fts, fgs, mcgs} = preprocess(b, i, tmap, gmap)
-    case imatch_(fqs, fgs, msg, mcgs) do
+    case imatch(fqs, fgs, msg, mcgs) do
       {:ok, match, contexts, split_queues} ->
         complete_match = List.insert_at(match,i, msg)
         new_b = postprocess(split_queues, b, fks, msg, i, tmap, fts)
@@ -117,32 +117,32 @@ defmodule Reactivity.Processing.Matching do
   # MATCHING ALGORITHMS #
   #######################
 
-  defp imatch_([], _fgs, {_v, c}, mcgs), do: {:ok, [], Context.combine([c], [mcgs]), []}
-  defp imatch_(fqs, fgs, msg, mcgs) do
+  defp imatch([], _fgs, {_v, c}, mcgs), do: {:ok, [], Context.combine([c], [mcgs]), []}
+  defp imatch(fqs, fgs, msg, mcgs) do
     [tq | tqs] = Enum.map(fqs, fn q -> {[], q} end)
     [fgsc | fgsn] = fgs
-    imatch_([], tq, tqs, [], msg, {[], fgsc, fgsn}, mcgs)
+    imatch([], tq, tqs, [], msg, {[], fgsc, fgsn}, mcgs)
   end
 
-  defp imatch_(_qls, {[], []}, _qns, _acc, _msg, {_fgsl, _fgsc, _fgsn}, _mcgs) do
+  defp imatch(_qls, {[], []}, _qns, _acc, _msg, {_fgsl, _fgsc, _fgsn}, _mcgs) do
     # one queue is empty, no match possible
     {:err, :emptyqueue}
   end
-  defp imatch_(qls, {mls, []}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs) do
+  defp imatch(qls, {mls, []}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs) do
     # We backtracked but this queue is out of messages.
     case qls do
       # There is a previous queue. Backtrack to that queue.
       [{qlsh_mls, [qlsh_mc | qlsh_mns]} | qlst] ->
         [_acch | acct] = acc
         [fgslh | fgslt] = fgsl
-        imatch_(qlst, {[qlsh_mc | qlsh_mls], qlsh_mns}, [{[], Enum.reverse(mls)} | qns],
+        imatch(qlst, {[qlsh_mc | qlsh_mls], qlsh_mns}, [{[], Enum.reverse(mls)} | qns],
           acct, msg, {fgslt, fgslh, [fgsc | fgsn]}, mcgs)
       # There is no previous queue before the current one. # Search finished: no match found.
       [] ->
         {:err, :nomatch}
     end
   end
-  defp imatch_(qls, {mls, [{mc, :ok} | mns]}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs) do
+  defp imatch(qls, {mls, [{mc, :ok} | mns]}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs) do
     cctxs =
       [msg | [mc | acc]]
       |> Enum.map(fn {_v, cs} -> cs end)
@@ -155,7 +155,7 @@ defmodule Reactivity.Processing.Matching do
         # There is still another queue left to match with. Proceed with that queue.
         [qnsh | qnst] ->
           [fgsnh | fgsnt] = fgsn
-          imatch_(
+          imatch(
             [{mls, [mc | mns]} | qls], qnsh, qnst, 
             [mc | acc], msg, {[fgsc | fgsl], fgsnh, fgsnt}, mcgs)
         # There is not further queue to match with. Search finished: match found.
@@ -168,7 +168,7 @@ defmodule Reactivity.Processing.Matching do
       case mns do
         # There is still a message left in the current queue. Proceed with that one.
         [_msnh | _msnt] ->
-          imatch_(qls, {[mc | mls], mns}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs)
+          imatch(qls, {[mc | mls], mns}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs)
         # This queue is out of messages.
         [] ->
           case qls do
@@ -176,7 +176,7 @@ defmodule Reactivity.Processing.Matching do
             [{qlsh_mls, [qlsh_mc | qlsh_mns]} | qlst] ->
               [_acch | acct] = acc
               [fgslh | fgslt] = fgsl
-              imatch_(qlst, {[qlsh_mc | qlsh_mls], qlsh_mns}, [{[], Enum.reverse([mc | mls])} | qns],
+              imatch(qlst, {[qlsh_mc | qlsh_mls], qlsh_mns}, [{[], Enum.reverse([mc | mls])} | qns],
                acct, msg, {fgslt, fgslh, [fgsc | fgslt]}, mcgs)
             # There is no previous queue before the current one. # Search finished: no match found.
             [] ->
@@ -185,28 +185,28 @@ defmodule Reactivity.Processing.Matching do
       end
     end
   end
-  defp imatch_(qls, {mls, [{mc, :bad} | [_msnh | _msnt] = mns]}, qns, 
+  defp imatch(qls, {mls, [{mc, :bad} | [_msnh | _msnt] = mns]}, qns, 
     acc, msg, {fgsl, fgsc, fgsn}, mcgs) do
     # message is no use, go to the next one since there still is one in this queue.
-    imatch_(qls, {[mc | mls], mns}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs)
+    imatch(qls, {[mc | mls], mns}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs)
   end
-  defp imatch_([{qlsh_mls, [qlsh_mc | qlsh_mns]} | qlst], {mls, [{mc, :bad} | []]}, qns,
+  defp imatch([{qlsh_mls, [qlsh_mc | qlsh_mns]} | qlst], {mls, [{mc, :bad} | []]}, qns,
    [_acch | acct], msg, {[fgslh | fgslt], fgsc, fgsn}, mcgs) do
     # backtrack
-    imatch_(qlst, {[qlsh_mc | qlsh_mls], qlsh_mns}, [{[], Enum.reverse([mc | mls])} | qns], 
+    imatch(qlst, {[qlsh_mc | qlsh_mls], qlsh_mns}, [{[], Enum.reverse([mc | mls])} | qns], 
       acct, msg, {fgslt, fgslh, [fgsc | fgsn]}, mcgs) 
   end
-  defp imatch_([], {_mls, [{_mc, :bad} | []]}, _qns, _acc, _msg, _fgs, _mcgs), do: {:err, :nomatch}
-  defp imatch_(qls, {mls, [mc | mns]}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs) do
+  defp imatch([], {_mls, [{_mc, :bad} | []]}, _qns, _acc, _msg, _fgs, _mcgs), do: {:err, :nomatch}
+  defp imatch(qls, {mls, [mc | mns]}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs) do
     small_cctxs =
       [msg, mc]
       |> Enum.map(fn {_v, cs} -> cs end)
       |> Context.combine([mcgs, fgsc])
     cgs = Guarantee.combine([mcgs, fgsc])
     if Context.sufficient_quality?(small_cctxs, cgs) do
-      imatch_(qls, {mls, [{mc, :ok} | mns]}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs)
+      imatch(qls, {mls, [{mc, :ok} | mns]}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs)
     else
-      imatch_(qls, {mls, [{mc, :bad} | mns]}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs)
+      imatch(qls, {mls, [{mc, :bad} | mns]}, qns, acc, msg, {fgsl, fgsc, fgsn}, mcgs)
     end
   end
 
