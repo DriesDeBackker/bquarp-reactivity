@@ -8,13 +8,13 @@ defmodule Test.BQuarp.SignalTest do
 
   require Logger
 
-  # @tag :disabled
+  #@tag :disabled
   test "add, remove, set and keep guarantees" do
     obs = Subject.create()
 
     signal =
       obs
-      |> Behaviour.from_plain_obs({:g, 0})
+      |> B.from_plain_obs({:g, 0})
       |> Signal.add_guarantee({:t, 0})
 
     assert(Signal.guarantees(signal) |> Enum.count() == 2)
@@ -47,7 +47,9 @@ defmodule Test.BQuarp.SignalTest do
     assert(not Signal.carries_guarantee?(signal, {:c, 0}))
   end
 
-  # @tag :disabled
+  #########################################################
+
+  #@tag :disabled
   test "lift and apply a function to a Signal (1)" do
     testproc = self()
     obs = Subject.create()
@@ -65,8 +67,10 @@ defmodule Test.BQuarp.SignalTest do
     assert_receive(10, 1000, "did not get this message!")
   end
 
-  # @tag :disabled
-  test "lift and apply a function to a Signal (1)" do
+  #########################################################
+
+  #@tag :disabled
+  test "lift and apply a function to a Signal (2)" do
     testproc = self()
     obs = Subject.create()
 
@@ -87,7 +91,9 @@ defmodule Test.BQuarp.SignalTest do
     assert_receive(10, 1000, "did not get this message!")
   end
 
-  # @tag :disabled
+  #########################################################
+
+  #@tag :disabled
   test "lift and apply a function to two signals (1)" do
     testproc = self()
     obs1 = Subject.create()
@@ -96,12 +102,12 @@ defmodule Test.BQuarp.SignalTest do
     s1 =
       obs1
       |> ES.from_plain_obs({:t, 0})
-    assert(ES.is_event_stream?(es1))
+    assert(ES.is_event_stream?(s1))
 
     s2 =
       obs2
       |> ES.from_plain_obs({:t, 0})
-    assert(ES.is_event_stream?(es2))
+    assert(ES.is_event_stream?(s2))
 
     sr = 
       [s1, s2]
@@ -132,7 +138,9 @@ defmodule Test.BQuarp.SignalTest do
     assert_receive(10, 1000, "did not get this message!")
   end
 
-  # @tag :disabled
+  #########################################################
+
+  #@tag :disabled
   test "lift and apply a function to two signals (2)" do
     testproc = self()
     obs1 = Subject.create()
@@ -171,6 +179,8 @@ defmodule Test.BQuarp.SignalTest do
     assert_receive(6, 1000, "did not get this message!")
   end
 
+  #########################################################
+  #@tag :disabled
   test "lift and apply a function to two signals (3)" do
     testproc = self()
     obs1 = Subject.create()
@@ -187,7 +197,7 @@ defmodule Test.BQuarp.SignalTest do
     sr = 
       [s1, s2]
       |> Signal.liftapp(fn x, y -> x + y end)
-    assert(ES.is_event_stream?(sr)
+    assert(ES.is_event_stream?(sr))
     ES.each(sr, fn x -> send(testproc, x) end)
 
     Subject.next(obs2, 1)
@@ -211,6 +221,9 @@ defmodule Test.BQuarp.SignalTest do
     assert_receive(8, 1000, "did not get this message!")
   end
 
+  #########################################################
+
+  #@tag :disabled
   test "lift and apply a list function to a variable number of signals" do
     testproc = self()
 
@@ -246,7 +259,7 @@ defmodule Test.BQuarp.SignalTest do
     Subject.next(obs1, 3)
     assert_receive(4.0, 1000, "did not get this message!")
 
-    Subject.next(hobs, signal3)
+    Subject.next(hobs, s3)
 
     Subject.next(obs1, 7)
 

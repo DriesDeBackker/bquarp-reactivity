@@ -42,9 +42,9 @@ defmodule Reactivity.Processing.Matching do
   Outputs a list of queue lists and a corresponding list of parent ids without the entry for the message's parent
   %{0 => q0, ... , parent_id => q_parent_id, ... , n => qn}  -> {[q0, ... q_parent_id_-1, q_parent_id+1, ... , qn], [0, ... parent_id-1, parent_id+1, ... n]}
   """
-  defp preprocess(b, i, ts, gs) do
+  defp preprocess(b, i, tmap, gmap) do
     mcgs =
-      gs
+      gmap
       |> Map.get(i)
     ks =
       b
@@ -55,10 +55,10 @@ defmodule Reactivity.Processing.Matching do
       |> List.delete(i)
     fts =
       fks
-      |> Enum.map(fn n -> Map.get(ts, n) end)
+      |> Enum.map(fn n -> Map.get(tmap, n) end)
     fgs =
       fks
-      |> Enum.map(fn n -> Map.get(gs, n) end)
+      |> Enum.map(fn n -> Map.get(gmap, n) end)
     fqs =
       fks
       |> Enum.map(fn n -> Map.get(b, n) end)

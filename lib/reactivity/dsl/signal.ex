@@ -279,7 +279,6 @@ defmodule Reactivity.DSL.Signal do
       inds
       |> Enum.zip(ts)
       |> Map.new()
-
     rtype =
       if contains_event_stream(signals) do
         :event_stream
@@ -288,7 +287,7 @@ defmodule Reactivity.DSL.Signal do
       end
 
     # Start our CombineWithGuarantees observable.
-    {:ok, pid} = GenObservable.start(CombineWithGuarantees, [imap, tmap, gmap])
+    {:ok, pid} = GenObservable.start(CombineWithGuarantees, [imap, tmap, gmap, rtype])
     # Make the observees send to us.
     tagged |> Enum.each(fn {obs_f, _obs_pid} -> obs_f.(pid) end)
     # Create the continuation.
@@ -303,20 +302,26 @@ defmodule Reactivity.DSL.Signal do
 
     # Determine the resulting guarantees
     gs = Guarantee.combine(gss)
-
-    # Apply the appropriate transformations to the contexts
-    tobs =
-      gs
-      |> Enum.map(fn g -> Context.new_context_obs(aobs, g) end)
-      |> Obs.zip_n()
-    robs =
-      aobs
-      |> Obs.zip(tobs)
-      |> Obs.map(fn {{v, cxs}, ts} ->
-        tslist = Tuple.to_list(ts)
-        new_cxs = Context.transform(cxs, tslist, gs)
-        {v, new_cxs}
-      end)
+    # Establish the resulting observable
+    robs = 
+      case gs do
+        [] -> 
+          aobs
+        _  -> 
+          # Apply the appropriate transformations to the contexts
+          tobs =
+            gs
+            |> Enum.map(fn g -> Context.new_context_obs(aobs, g) end)
+            |> Obs.zip_n()
+          aobs
+          |> Obs.zip(tobs)
+          |> Obs.map(
+            fn {{v, cxs}, ts} ->
+              tslist = Tuple.to_list(ts)
+              new_cxs = Context.transform(cxs, tslist, gs)
+              {v, new_cxs}
+            end)
+      end
 
     {rtype, robs, gs}
   end
@@ -402,7 +407,7 @@ defmodule Reactivity.DSL.Signal do
       |> Map.new()
 
     # Start our CombineVarWithGuarantees observable.
-    {:ok, pid} = GenObservable.start(CombineVarWithGuarantees, [qmap, gmap, imap, thobs_p])
+    {:ok, pid} = GenObservable.start(CombineVarWithGuarantees, [qmap, gmap, type, imap, thobs_p])
     # Make the observees send to us.
     tobss |> Enum.each(fn {obs_f, _obs_pid} -> obs_f.(pid) end)
     # Make the higher order observable send to us
@@ -417,19 +422,26 @@ defmodule Reactivity.DSL.Signal do
         {func.(vals), cxts}
       end)
 
-    # Apply the appropriate transformations to the contexts
-    tobs =
-      gs
-      |> Enum.map(fn g -> Context.new_context_obs(aobs, g) end)
-      |> Obs.zip_n()
-    robs =
-      aobs
-      |> Obs.zip(tobs)
-      |> Obs.map(fn {{v, cxs}, ts} ->
-        tslist = Tuple.to_list(ts)
-        new_cxs = Context.transform(cxs, tslist, gs)
-        {v, new_cxs}
-      end)
+    # Establish the resulting observable
+    robs = 
+      case gs do
+        [] -> 
+          aobs
+        _  -> 
+          # Apply the appropriate transformations to the contexts
+          tobs =
+            gs
+            |> Enum.map(fn g -> Context.new_context_obs(aobs, g) end)
+            |> Obs.zip_n()
+          aobs
+          |> Obs.zip(tobs)
+          |> Obs.map(
+            fn {{v, cxs}, ts} ->
+              tslist = Tuple.to_list(ts)
+              new_cxs = Context.transform(cxs, tslist, gs)
+              {v, new_cxs}
+            end)
+      end
 
     {type, robs, gs}
   end

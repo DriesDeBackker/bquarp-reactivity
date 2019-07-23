@@ -1,4 +1,4 @@
-defmodule Test.BQuarp.SignalTest do
+defmodule Test.BQuarp.EventStreamTest do
   use ExUnit.Case
   alias Reactivity.DSL.Signal
   alias Reactivity.DSL.Behaviour, as: B

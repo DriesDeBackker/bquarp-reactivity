@@ -62,13 +62,14 @@ defmodule Reactivity.Processing.CombineVarWithGuarantees do
   def handle_event({:newvalue, index, msg}, {buffer, gmap, imap, hosp, amap, type, kcounter}) do
     updated_buffer = %{buffer | index => Map.get(buffer, index) ++ [msg]}
 
-    is =
+    is = 
       imap
-      |> Map.keys()
+      |> Map.values
 
-    tmap =
+    tmap = 
       is
       |> Enum.zip(List.duplicate(type, length(is)))
+      |> Map.new
 
     case Matching.match(updated_buffer, msg, index, tmap, gmap) do
       :nomatch ->

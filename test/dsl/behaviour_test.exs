@@ -1,4 +1,4 @@
-defmodule Test.BQuarp.SignalTest do
+defmodule Test.BQuarp.BehaviourTest do
   use ExUnit.Case
   alias Reactivity.DSL.Signal
   alias Reactivity.DSL.Behaviour, as: B
@@ -31,7 +31,7 @@ defmodule Test.BQuarp.SignalTest do
   end
 
   # @tag :disabled
-  test "to Event Stream" do
+  test "to Event Stream (changes)" do
     obs = Subject.create()
 
     s1 = B.from_plain_obs(obs, {:g, 0})
@@ -44,8 +44,6 @@ defmodule Test.BQuarp.SignalTest do
 
   # @tag :disabled
   test "switch" do
-    testprocess = self()
-
     s1 = Subject.create()
     s2 = Subject.create()
     s3 = Subject.create()
@@ -117,8 +115,6 @@ defmodule Test.BQuarp.SignalTest do
 
   # @tag :disabled
   test "until" do
-    testprocess = self()
-
     s1 = Subject.create()
     s2 = Subject.create()
     s3 = Subject.create()
@@ -164,6 +160,5 @@ defmodule Test.BQuarp.SignalTest do
     Subject.next(s2, :s2c)
     :timer.sleep(10)
     assert(B.evaluate(br) == :s2c)
-
   end
 end

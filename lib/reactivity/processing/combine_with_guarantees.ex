@@ -10,10 +10,8 @@ defmodule Reactivity.Processing.CombineWithGuarantees do
     {:ok, {:buffer, imap, :types, tmap, :guarantees, gmap, :result, rtype}}
   end
 
-  def handle_event(
-        {:newvalue, index, msg},
-        {:buffer, buffer, :types, tmap, :guarantees, gmap, :result, rtype}
-      ) do
+  def handle_event({:newvalue, index, msg},
+        {:buffer, buffer, :types, tmap, :guarantees, gmap, :result, rtype}) do
     updated_buffer = %{buffer | index => Map.get(buffer, index) ++ [msg]}
 
     case Matching.match(updated_buffer, msg, index, tmap, gmap) do
@@ -25,21 +23,29 @@ defmodule Reactivity.Processing.CombineWithGuarantees do
           match
           |> Enum.unzip()
 
+        #Logger.error("Investigating whether we have to spit")
+        #Logger.error(inspect index)
+        #Logger.error(inspect buffer)
+        #Logger.error(inspect tmap)
+        #Logger.error(inspect rtype)
+
         if first_value?(index, buffer) and
              Map.get(tmap, index) == :behaviour and
              rtype == :event_stream do
+          Logger.error("Going to spit, bitch")
           Process.send(self(), {:event, {:spit, index}}, [])
         end
+
+        #Logger.error("Producing the arguments")
+        #Logger.error(inspect vals)
 
         {:value, {vals, contexts},
          {:buffer, new_buffer, :types, tmap, :guarantees, gmap, :result, rtype}}
     end
   end
 
-  def handle_event(
-        {:spit, index},
-        {:buffer, buffer, :types, tmap, :guarantees, gmap, :result, rtype}
-      ) do
+  def handle_event({:spit, index},
+        {:buffer, buffer, :types, tmap, :guarantees, gmap, :result, rtype}) do
     msg =
       buffer
       |> Map.get(index)

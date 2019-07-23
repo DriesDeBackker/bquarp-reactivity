@@ -213,7 +213,7 @@ defmodule Reactivity.DSL.EventStream do
   This can be considered to be the creation of a new source Signal 
   with the given Guarantee in a stratified dependency graph.
   """
-  def distinct({:event_stream, sobs, cgs}, new_cg) do
+  def distinct({:event_stream, sobs, _cgs}, new_cg) do
     dsobs =
       sobs
       |> Sobs.to_plain_obs()
@@ -243,7 +243,7 @@ defmodule Reactivity.DSL.EventStream do
   This can be considered to be the creation of a new source Signal 
   with the given Guarantee in a stratified dependency graph.
   """
-  def novel({:event_stream, sobs, cgs}, new_cg) do
+  def novel({:event_stream, sobs, _cgs}, new_cg) do
     nsobs =
       sobs
       |> Sobs.to_plain_obs()
