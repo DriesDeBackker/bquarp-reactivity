@@ -31,7 +31,7 @@ by adding `bquarp` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:bquarp, "~> 0.4.3"}
+    {:bquarp, "~> 0.4.4"}
   ]
 end
 ```

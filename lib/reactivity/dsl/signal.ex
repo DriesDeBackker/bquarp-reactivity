@@ -489,12 +489,12 @@ defmodule Reactivity.DSL.Signal do
       |> Obs.unzip
     vobs
     |> Obs.inspect
-    
+
     {type, sobs, cgs}
   end
 
   @doc """
-  Inspects the given Signal by printing its output Values to the console.
+  Inspects the given Signal by printing its Messages to the console.
   """
   def inspect_message({type, sobs, cgs}) do
     sobs
