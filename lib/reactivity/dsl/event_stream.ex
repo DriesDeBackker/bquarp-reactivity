@@ -273,4 +273,38 @@ defmodule Reactivity.DSL.EventStream do
 
     {:event_stream, sobs, cgs}
   end
+
+  @doc """
+  Switches from an intial Behaviour to newly supplied Behaviours.
+
+  Takes an initial Behaviour and a higher-order Event Stream carrying Behaviours.
+  Returns a Behaviour that is at first equal to the initial Behaviour.
+  Each time the Event Stream emits a new Behaviour,
+  the returned Behaviour switches to this new Behaviour.
+
+  Requires that all Behaviours have the same set of consistency guarantees.
+  """
+  def switch({:event_stream, es_sobs, gs}, {:event_stream, hes_sobs, _}) do
+    switch_obs =
+      hes_sobs
+      |> Obs.map(fn {{:event_stream, obs, _}, _gs} -> obs end)
+
+    robs = Obs.switch(es_sobs, switch_obs)
+    {:event_stream, robs, gs}
+  end
+
+  @doc """
+  Switches from one Behaviour to another on an event occurrence.
+
+  Takes a two Behaviours and an Event Stream.
+  Returns a Behaviour that is equal to the first Behaviour until the an event occurs,
+  at which point the resulting Behaviour switches to the second Behaviour.
+  The value of the event is not relevant.
+
+  Requires that both Behaviours have the same set of consistency guarantees.
+  """
+  def until({:event_stream, es_sobs1, gs1}, {:event_stream, es_sobs2, _gs2}, {:event_stream, es_sobs, _gse}) do
+    robs = Obs.until(es_sobs1, es_sobs2, es_sobs)
+    {:event_stream, robs, gs1}
+  end
 end

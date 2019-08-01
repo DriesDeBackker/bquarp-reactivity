@@ -127,6 +127,17 @@ defmodule Reactivity.DSL.Signal do
   end
 
   @doc """
+  Clears all Guarantees of the given Signal.
+  """
+  def clear_guarantees({type, sobs, _gs}) do
+    new_sobs =
+      sobs
+      |> Sobs.clear_context
+
+    {type, new_sobs, []}
+  end
+
+  @doc """
   Lifts and applies an n-ary primitive function to n Signals.
 
   Takes:
@@ -473,6 +484,19 @@ defmodule Reactivity.DSL.Signal do
   Inspects the given Signal by printing its output Values to the console.
   """
   def inspect({type, sobs, cgs}) do
+    {vobs, _cobs} = 
+      sobs
+      |> Obs.unzip
+    vobs
+    |> Obs.inspect
+    
+    {type, sobs, cgs}
+  end
+
+  @doc """
+  Inspects the given Signal by printing its output Values to the console.
+  """
+  def inspect_message({type, sobs, cgs}) do
     sobs
     |> Obs.inspect()
 

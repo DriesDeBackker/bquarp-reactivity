@@ -23,8 +23,8 @@ require Logger
 #   import_file("path/to/this_script.exs")
 
 # The fully qualified names of the rpi nodes:
-rpi1= :"nerves@192.168.1.5"
-rpi2= :"nerves@192.168.1.4"
+rpi1= :"nerves@192.168.1.4"
+rpi2= :"nerves@192.168.1.5"
 rpi3= :"nerves@192.168.1.3"
 
 # Create a mock temperature sensor

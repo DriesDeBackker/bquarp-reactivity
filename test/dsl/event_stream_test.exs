@@ -105,7 +105,6 @@ defmodule Test.BQuarp.EventStreamTest do
     |> ES.each(fn x -> send(testprocess, x) end)
 
     Subject.next(b, :b1)
-
     receive do
       x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
     after
@@ -113,7 +112,6 @@ defmodule Test.BQuarp.EventStreamTest do
     end
 
     Subject.next(c, :c1)
-
     receive do
       x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
     after
@@ -121,7 +119,6 @@ defmodule Test.BQuarp.EventStreamTest do
     end
 
     Subject.next(b, :b2)
-
     receive do
       x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
     after
@@ -159,7 +156,6 @@ defmodule Test.BQuarp.EventStreamTest do
     end
 
     Subject.next(b, :b3)
-
     receive do
       x -> flunk("Mailbox was supposed to be empty, got: #{inspect(x)}")
     after

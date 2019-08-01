@@ -28,16 +28,16 @@ require Logger
 #   import_file("path/to/this_script.exs")
 
 # The fully qualified names of the rpi nodes:
-rpi1= :"nerves@192.168.1.5"
-rpi2= :"nerves@192.168.1.4"
+rpi1= :"nerves@192.168.1.4"
+rpi2= :"nerves@192.168.1.5"
 rpi3= :"nerves@192.168.1.3"
 
 # Globally set the guarantee to strict glitch-freedom.
 Registry.set_guarantee({:g, 0})
 
 si = 100
-td = 10
-n = 51
+#td = 500
+n = 5000
 
 ####################
 # REACTIVE PROGRAM #
@@ -69,7 +69,7 @@ deploy(rpi2, intermediate1)
 
 intermediate2 = fn ->
 	Signal.signal(:ss)
-	|> EventStream.delay(td)
+	#|> EventStream.delay(td)
 	|> Signal.register(:s2)
 	|> Signal.inspect
 	:ok
@@ -80,14 +80,37 @@ deploy(rpi3, intermediate2)
 ######################################
 
 round_trip = fn ->
-	[Signal.signal(:s1), Signal.signal(:s2)]
-	|> Signal.liftapp(fn x, y -> if x == y, do: x, else: nil end)
-	|> Signal.liftapp(fn x -> [(:erlang.monotonic_time - x) / 1000] end)
-	|> EventStream.scan(fn x, l -> l ++ x end)
-	|> Signal.inspect
-	|> Signal.liftapp(fn l -> Enum.sum(l)/length(l) end)
-	|> Signal.inspect
+	results = 
+		[Signal.signal(:s1), Signal.signal(:s2)]
+		|> Signal.liftapp(fn x, y -> if x == y, do: x, else: nil end)
+		|> Signal.liftapp(fn x -> [(:erlang.monotonic_time - x) / 1000] end)
+		|> EventStream.scan(fn x, l -> l ++ x end)
+	mean = 
+		results
+		|> Signal.liftapp(fn l -> Enum.sum(l)/length(l) end)
+	variance =
+		[results, mean]
+		|> Signal.liftapp(
+			fn rs, m -> 
+				s = rs
+				|> Stream.map(fn r -> :math.pow(r-m, 2) end)
+				|> Enum.sum
+				s/length(rs)
+			end)
 	:ok
+	min_max =
+		results
+		|> Signal.liftapp(fn l -> {Enum.min(l), Enum.max(l)} end)
+
+	mean
+	|> Signal.liftapp(fn m -> "Mean: #{inspect m}" end)
+	|> Signal.inspect
+	variance
+	|> Signal.liftapp(fn v -> "Variance: #{inspect v}" end)
+	|> Signal.inspect
+	min_max
+	|> Signal.liftapp(fn mm -> "Min, max: #{inspect mm}" end)
+	|> Signal.inspect
 end
 
 deploy(rpi1, round_trip)
