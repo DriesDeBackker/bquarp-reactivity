@@ -1,7 +1,7 @@
 alias Observables.{Obs, Subject}
 alias Reactivity.Registry
 alias Reactivity.DSL.{Signal, SignalObs, Behaviour, EventStream}
-import Deployment
+import Deployer
 
 require Logger
 
@@ -23,18 +23,19 @@ require Logger
 #   import_file("path/to/this_script.exs")
 
 # The fully qualified names of the rpi nodes:
-rpi1= :"nerves@192.168.1.4"
-rpi2= :"nerves@192.168.1.5"
-rpi3= :"nerves@192.168.1.3"
+rpi1= :"nerves@192.168.1.3"
+rpi2= :"nerves@192.168.1.4"
+rpi3= :"nerves@192.168.1.5"
 
 # Create a mock temperature sensor
 temperature1_app = fn ->
 	t1_handle = Subject.create
 	t1_handle
-	|> EvenStream.from_plain_obs({:t, 0})
-	|> EvenStream.scan(fn(x,y) -> x + y end)
-	|> EvenStream.hold
+	|> EventStream.from_plain_obs({:t, 0})
+	|> EventStream.scan(fn(x,y) -> x + y end)
+	|> EventStream.hold
 	|> Signal.register(:t1)
+	|> Signal.inspect
 	Subject.next(t1_handle, 20)
 	Obs.repeat(fn -> Enum.random(-1..1) end)
 	|> Obs.each(fn v -> Subject.next(t1_handle, v) end)
@@ -42,16 +43,17 @@ temperature1_app = fn ->
 end
 
 # Create a mock temperature sensor
-temperature1_app = fn ->
+temperature2_app = fn ->
 	t2_handle = Subject.create
 	t2_handle
-	|> EvenStream.from_plain_obs({:t, 0})
-	|> EvenStream.scan(fn(x,y) -> x + y end)
-	|> EvenStream.hold
+	|> EventStream.from_plain_obs({:t, 0})
+	|> EventStream.scan(fn(x,y) -> x + y end)
+	|> EventStream.hold
 	|> Signal.register(:t2)
+	|> Signal.inspect
 	Subject.next(t2_handle, 20)
 	Obs.repeat(fn -> Enum.random(-1..1) end)
-	|> Obs.each(fn v -> Subject.next(t1_handle, v) end)
+	|> Obs.each(fn v -> Subject.next(t2_handle, v) end)
 	:ok
 end
 
@@ -61,30 +63,31 @@ mean_temperature_app = fn ->
 	t2 = Signal.signal(:t2)
 	tm = Signal.liftapp([t1, t2], fn(x,y) -> (x+y)/2 end)
 	|> Signal.register(:tm)
+	|> Signal.inspect
 	:ok
 end
 
 # Control an air conditioning unit
-airco_app = fn ->
-	tm = 
-		Signal.signal(:tm)
-		|> Behaviour.changes
-	commands = 
-		tm
-		|> EventStream.filter(fn t -> t > 25 or t < 20 end)
-		|> EventStream.liftapp(fn t -> if t > 25, do: :on, else: :off end)
-		|> EventStrema.novel
-		|> EvenStream.each(
-			fn c ->
-				case c do
-					:off -> # turn off the airco
-					:on -> #turn on the airco
-				end
-			end)
-	:ok
-end
+#airco_app = fn ->
+#	tm = 
+#		Signal.signal(:tm)
+#		|> Behaviour.changes
+#	commands = 
+#		tm
+#		|> EventStream.filter(fn t -> t > 25 or t < 20 end)
+#		|> EventStream.liftapp(fn t -> if t > 25, do: :on, else: :off end)
+#		|> EventStream.novel
+#		|> EventStream.each(
+#			fn c ->
+#				case c do
+#					:off -> false
+#					:on -> true
+#				end
+#			end)
+#	:ok
+#end
 
 deploy(rpi1, temperature1_app)
 deploy(rpi2, temperature2_app)
 deploy(rpi2, mean_temperature_app)
-deploy(rpi3, airco_app)
+#deploy(rpi3, airco_app)

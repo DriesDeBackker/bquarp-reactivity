@@ -212,22 +212,22 @@ defmodule Reactivity.DSL.EventStream do
   replacing any previous ones. This is reflected in the Message Contexts.
   This can be considered to be the creation of a new source Signal 
   with the given Guarantee in a stratified dependency graph.
-  """
-  def distinct({:event_stream, sobs, _cgs}, new_cg) do
+  
+  def distinct({:event_stream, sobs, _cgs}, new_cg, fun \\ fn x, y -> x == y end) do
     dsobs =
       sobs
       |> Sobs.to_plain_obs()
-      |> Obs.distinct(fn(x,y) -> x == y end)
+      |> Obs.distinct(fun)
       |> Sobs.from_plain_obs()
       |> Sobs.add_context(new_cg)
 
     {:event_stream, dsobs, [new_cg]}
   end
-
- def distinct({:event_stream, sobs, cgs}) do
+  """
+  def distinct({:event_stream, sobs, cgs}, fun \\ fn x, y -> x == y end) do
     dsobs =
       sobs
-      |> Obs.distinct(fn({v1, _cs1}, {v2, _cs2}) -> v1 == v2 end)
+      |> Obs.distinct(fn({v1, _cs1}, {v2, _cs2}) -> fun.(v1, v2) end)
 
     {:event_stream, dsobs, cgs}
   end
@@ -243,11 +243,11 @@ defmodule Reactivity.DSL.EventStream do
   This can be considered to be the creation of a new source Signal 
   with the given Guarantee in a stratified dependency graph.
   """
-  def novel({:event_stream, sobs, _cgs}, new_cg) do
+  def novel({:event_stream, sobs, _cgs}, new_cg, fun \\ fn x, y -> x == y end) do
     nsobs =
       sobs
       |> Sobs.to_plain_obs()
-      |> Obs.novel(fn(x,y) -> x == y end)
+      |> Obs.novel(fun)
       |> Sobs.from_plain_obs()
       |> Sobs.add_context(new_cg)
 

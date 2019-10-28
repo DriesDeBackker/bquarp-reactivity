@@ -112,8 +112,7 @@ defmodule Reactivity.Quality.Context do
     |> Stream.map(fn lst -> Enum.unzip(lst) end)
     |> Enum.map(fn {gs, cs} ->
       [g] = Guarantee.combine(gs)
-      c = combine(cs, g)
-      c
+      combine(cs, g)
     end)
   end
 

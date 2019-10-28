@@ -1,4 +1,4 @@
-defmodule Deployment do
+defmodule Deployer do
 
 	def deploy(snode, program) do
 		evaluator = :global.whereis_name({snode, :evaluator})
