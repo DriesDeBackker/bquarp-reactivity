@@ -5,7 +5,7 @@ defmodule Reactivity.DSL.EventStream do
   """
   alias Reactivity.DSL.SignalObs, as: Sobs
   alias Reactivity.DSL.Signal, as: Signal
-  alias Reactivity.Registry
+  alias ReactiveMiddleware.Registry
   alias Observables.Obs
 
   require Logger

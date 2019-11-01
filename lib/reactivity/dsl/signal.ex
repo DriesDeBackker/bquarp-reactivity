@@ -3,6 +3,7 @@ defmodule Reactivity.DSL.Signal do
   The DSL for Distributed Reactive Programming,
   specifically, operations applicable to Signals in general (both Behaviours and Event Streams).
   """
+  alias ReactiveMiddleware.Registry
   alias Reactivity.Processing.CombineWithGuarantees
   alias Reactivity.Processing.CombineVarWithGuarantees
   alias Reactivity.Quality.Context
@@ -10,16 +11,24 @@ defmodule Reactivity.DSL.Signal do
   alias Reactivity.DSL.SignalObs, as: Sobs
   alias Reactivity.DSL.EventStream, as: ES
   alias Reactivity.DSL.Behaviour, as: B
-  alias Reactivity.Registry
 
   alias Observables.Obs
   alias Observables.GenObservable
 
   require Logger
 
+  @doc """
+  Checks whether the given object is a signal.
+  """
   def is_signal?(o) do
   	ES.is_event_stream?(o) or B.is_behaviour?(o)
   end
+
+  @doc """
+  Returns the type of the given signal
+  """
+  def get_type({:behaviour, _, _}), do: :behaviour
+  def get_type({:event_stream, _,_}), do: :event_stream
 
   @doc """
   Transforms a Signal into a plain Observable.
@@ -463,6 +472,23 @@ defmodule Reactivity.DSL.Signal do
   def signal(name) do
     {:ok, signal} = Registry.get_signal(name)
     signal
+  end
+
+  @doc """
+  Gets the names, types and hosts of all the available signals.
+  """
+  def signals() do
+    {:ok, signals} = Registry.get_signals
+    signals
+    |> Enum.map(fn {name, {host, signal}} -> {name, host, get_type(signal)} end)
+  end
+
+  @doc """
+  Gets the node where the signal with the given name is hosted.
+  """
+  def host(name) do
+    {:ok, host} = Registry.get_signal_host(name)
+    host
   end
 
   @doc """

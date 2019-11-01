@@ -1,10 +1,10 @@
-defmodule Network.Evaluator do
+defmodule ReactiveMiddleware.Evaluator do
   use GenServer
   require Logger
   alias GenServer
 
   ####################
-  # Client interface #
+  # CLIENT INTERFACE #
   ####################
 
   @doc """
@@ -15,30 +15,23 @@ defmodule Network.Evaluator do
   end
 
   @doc """
-  Deploys a program locally in the reactor.
+  Evaluates a (remotely) sent program locally.
   """
-  def deploy_program(program) do
+  def evaluate(program) do
     GenServer.cast(__MODULE__, {:deploy_program, program})
   end
 
   ####################
-  # Server callbacks #
+  # SERVER CALLBACKS #
   ####################
 
   def init([]) do
+    Logger.info("Starting the Evaluator")
     {:ok, %{}}
   end
 
-  def handle_call({:deploy_program, program}, _from, state) do
+  def handle_call({:evaluate, program}, _from, state) do
     res = program.()
-
-    Logger.debug("""
-    Program evaluated
-    ======================================
-    Result of evaluation: #{inspect(res)}
-    ======================================
-    """)
-
     {:reply, :ok, state}
   end
 end
