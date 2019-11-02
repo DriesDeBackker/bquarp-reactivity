@@ -56,7 +56,7 @@ defmodule ReactiveMiddleware.Connector do
 	  	name = String.to_atom(msg)
 	  	if name != Node.self do
 	  		Logger.info("New node has announced itself: #{name}")
-	  		handle_connect(name)
+	  		handle_discovery(name)
 	  	end
 	  	{:noreply, s}
 	end
@@ -78,11 +78,23 @@ defmodule ReactiveMiddleware.Connector do
 		{:noreply, s}
 	end
 
-	# Handles the call for manually connecting and subscribing.
+	@doc """
+	This message is received when a manual connect to a list of nodes is performed.
+	"""
 	def handle_call({:connect_all, ns}, _from, s) do
 		ns
 		|> Enum.each(fn n -> handle_connect(n) end)
 		{:reply, :ok, s}
+	end
+
+	@doc """
+	This message is received as a result of the Connector messaging itself for the purpose
+	of periodically announcing our presence in the face of no connections
+	(e.g. as a result of a temporary network disruption).
+	"""
+	def handle_cast({:monitor}, s) do
+		monitor()
+		{:noreply, s}
 	end
 
 	############################
@@ -100,7 +112,9 @@ defmodule ReactiveMiddleware.Connector do
 	    :net_kernel.set_net_ticktime(5, 0)
     	:net_kernel.monitor_nodes(true)
 	    {:ok, s} = open_multicast(@port, @multicast)
+	    Logger.info("Announcing our presence on the network")
 	    announce()
+	    monitor()
 	    {:ok, s}
 	end
 
@@ -129,22 +143,35 @@ defmodule ReactiveMiddleware.Connector do
 
 	# Announces our presence on the network by broadcasting this node's name.
 	defp announce() do
-	  	Logger.info("Announcing our presence on the network")
+	  	#Logger.info("Announcing our presence on the network")
 	  	{:ok, sender} = :gen_udp.open(0, mode: :binary)
 	  	:ok = :gen_udp.send(sender, @multicast, @port, "#{Node.self()}")
 	end
 
 	defp handle_disconnect(remote) do
-	    Logger.info("Lost: #{inspect remote}")
-	    Logger.info("Removing its signals from the registry")
-	    Registry.remove_signals_of(remote)
-  	end
+    Logger.info("Lost: #{inspect remote}")
+    Logger.info("Removing its signals from the registry")
+    Registry.remove_signals_of(remote)
+	end
 
-	defp handle_connect(remote) do
+	defp handle_discovery(remote) do
 		Logger.info("Connecting with: #{inspect remote}")
 		Node.connect(remote)
+	end
+
+	defp handle_connect(remote) do
 		:global.sync()
 		Logger.info("Synchronizing with: #{inspect remote}")
 		Registry.synchronize(remote)
+	end
+
+	defp monitor() do
+		if Node.list == [] do
+			announce()
+		end
+		Task.start(fn ->
+			:timer.sleep(2000)
+			GenServer.cast(__MODULE__, {:monitor})
+		end)
 	end
 end

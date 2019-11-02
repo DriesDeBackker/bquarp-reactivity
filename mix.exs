@@ -4,8 +4,8 @@ defmodule BQuarp.MixProject do
   def project do
     [
       app: :bquarp,
-      version: "0.4.5",
-      elixir: "~> 1.9",
+      version: "0.4.6",
+      elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: description(),
