@@ -31,7 +31,7 @@ defmodule ReactiveMiddleware.Evaluator do
   end
 
   def handle_call({:evaluate, program}, _from, state) do
-    res = program.()
+    program.()
     {:reply, :ok, state}
   end
 end

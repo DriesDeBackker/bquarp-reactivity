@@ -51,6 +51,16 @@ defmodule ReactiveMiddleware.Connector do
 		end
 	end
 
+	@doc """
+	This message is received as a result of the Connector messaging itself for the purpose
+	of periodically announcing our presence in the face of no connections
+	(e.g. as a result of a temporary network disruption).
+	"""
+	def handle_cast({:monitor}, s) do
+		monitor()
+		{:noreply, s}
+	end
+
 	# Handles an incoming announcement that is broadcasted by a new node.
 	def handle_info({:udp, _clientSocket, _clientIp, _clientPort, msg}, s) do
 	  	name = String.to_atom(msg)
@@ -65,7 +75,7 @@ defmodule ReactiveMiddleware.Connector do
 	This message is receives when a node returns. (Result of monitoring nodes).
 	"""
 	def handle_info({:nodeup, remote}, s) do
-		Logger.info("Remote node #{inspect remote} back up and running")
+		Logger.info("(Re)connected to remote node: #{inspect remote}.")
 		handle_connect(remote)
 		{:noreply, s}
 	end
@@ -87,15 +97,6 @@ defmodule ReactiveMiddleware.Connector do
 		{:reply, :ok, s}
 	end
 
-	@doc """
-	This message is received as a result of the Connector messaging itself for the purpose
-	of periodically announcing our presence in the face of no connections
-	(e.g. as a result of a temporary network disruption).
-	"""
-	def handle_cast({:monitor}, s) do
-		monitor()
-		{:noreply, s}
-	end
 
 	############################
 	# IMPLEMENTATION / HELPERS #
@@ -112,7 +113,6 @@ defmodule ReactiveMiddleware.Connector do
 	    :net_kernel.set_net_ticktime(5, 0)
     	:net_kernel.monitor_nodes(true)
 	    {:ok, s} = open_multicast(@port, @multicast)
-	    Logger.info("Announcing our presence on the network")
 	    announce()
 	    monitor()
 	    {:ok, s}
@@ -143,9 +143,11 @@ defmodule ReactiveMiddleware.Connector do
 
 	# Announces our presence on the network by broadcasting this node's name.
 	defp announce() do
-	  	#Logger.info("Announcing our presence on the network")
-	  	{:ok, sender} = :gen_udp.open(0, mode: :binary)
-	  	:ok = :gen_udp.send(sender, @multicast, @port, "#{Node.self()}")
+	  	Logger.info("Announcing our presence on the network")
+	  	case :gen_udp.open(0, mode: :binary) do
+		  	{:ok, sender} -> :gen_udp.send(sender, @multicast, @port, "#{Node.self()}")
+		  	{:error, _err} -> raise "Could not open send socket"
+		  end
 	end
 
 	defp handle_disconnect(remote) do
