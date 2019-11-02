@@ -4,7 +4,7 @@ defmodule BQuarp.MixProject do
   def project do
     [
       app: :bquarp,
-      version: "0.4.6",
+      version: "0.5.0",
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -17,15 +17,16 @@ defmodule BQuarp.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      mod: {ReactiveMiddleware.Application, []}
+      #mod: {ReactiveMiddleware.Application, []}
     ]
   end
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:rp_middleware, "~> 0.1.0"},
       {:ex_doc, "~> 0.19", only: :dev},
-      {:observables_extended, "~> 0.3.4"}
+      {:observables_extended, "~> 0.3.4"},
     ]
   end
 
