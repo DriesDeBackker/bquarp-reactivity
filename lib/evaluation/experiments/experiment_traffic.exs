@@ -6,6 +6,8 @@ alias Evaluation.Graph.GraphCreation
 alias Evaluation.Commands.CommandsGeneration
 alias Evaluation.Commands.CommandsInterpretation
 
+# Experiment set-up for measuring network traffic (e.g. using Wireshark).
+
 guarantee = {:g, 0}
 
 params = [

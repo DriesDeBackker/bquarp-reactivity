@@ -8,6 +8,8 @@ alias Evaluation.Commands.CommandsGeneration
 alias Evaluation.Commands.CommandsInterpretation
 alias Evaluation.Adaptations.SignalEval
 
+# Experiment set-up for measuring mean total propagation delay.
+
 guarantee = {:g, 0}
 
 params = [
@@ -18,7 +20,7 @@ params = [
  		:"nerves@192.168.1.224", 
  		:"nerves@192.168.1.247"],
 	nb_of_vars: 5,
-	graph_depth: 4,
+	graph_depth: 10,
 	signals_per_level_avg: 2,
 	deps_per_signal_avg: 2,
 	nodes_locality: 0.5,
@@ -65,7 +67,7 @@ fake_mean2 = fn name, ts1, ts2 ->
 		sts1 = Signal.signal(ts1)
 		sts2 = Signal.signal(ts2)
 		SignalEval.liftapp_eval([sts1, sts2],
-			fn x, y -> round((x + y) / 2) end)
+			fn {_n1, v1}, {_n2, v2} -> round((v1 + v2) / 2) end)
 		|> Signal.register(name)
 		:ok
 	end
@@ -77,7 +79,7 @@ fake_mean3 = fn name, ts1, ts2, ts3 ->
 		sts2 = Signal.signal(ts2)
 		sts3 = Signal.signal(ts3)
 		SignalEval.liftapp_eval([sts1, sts2, sts3],
-			fn x, y, z -> round((x + y + z) / 3) end)
+			fn {_n1, v1}, {_n2, v2}, {_n3, v3} -> round((v1 + v2 + v3) / 3) end)
 		|> Signal.register(name)
 		:ok
 	end
@@ -90,7 +92,7 @@ fake_mean4 = fn name, ts1, ts2, ts3, ts4 ->
 		sts3 = Signal.signal(ts3)
 		sts4 = Signal.signal(ts4)
 		SignalEval.liftapp_eval([sts1, sts2, sts3, sts4],
-			fn v, w, x, y -> round((v + w + x + y) / 4) end)
+			fn {_n1, v1}, {_n2, v2}, {_n3, v3}, {_n4, v4} -> round((v1 + v2 + v3 + v4) / 4) end)
 		|> Signal.register(name)
 		:ok
 	end
@@ -163,11 +165,11 @@ means =
 				|> Enum.map(fn {xt, xrs} -> {xt, Enum.max(xrs)} end)
 			IO.puts(inspect(maxes))
 			delays = 
-				full
+				maxes
 				|> Enum.map(fn {xt, max} -> max - xt end)
 			IO.puts(inspect(delays))
+			delays
 		end)
-	|> Enum.map(fn {_v, ds} -> Enum.sum(ds) / Enum.count(ds) end)
-	IO.puts(inspect(means))
-mean = Enum.sum(means) / Enum.count(means)
+	|> List.flatten
+mean = round(Enum.sum(means) / Enum.count(means))
 IO.puts("Mean total propagation delay: #{mean}")

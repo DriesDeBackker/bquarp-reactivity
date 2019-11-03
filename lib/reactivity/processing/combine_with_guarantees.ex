@@ -23,21 +23,11 @@ defmodule Reactivity.Processing.CombineWithGuarantees do
           match
           |> Enum.unzip()
 
-        #Logger.error("Investigating whether we have to spit")
-        #Logger.error(inspect index)
-        #Logger.error(inspect buffer)
-        #Logger.error(inspect tmap)
-        #Logger.error(inspect rtype)
-
         if first_value?(index, buffer) and
              Map.get(tmap, index) == :behaviour and
              rtype == :event_stream do
-          Logger.error("Going to spit, bitch")
           Process.send(self(), {:event, {:spit, index}}, [])
         end
-
-        #Logger.error("Producing the arguments")
-        #Logger.error(inspect vals)
 
         {:value, {vals, contexts},
          {:buffer, new_buffer, :types, tmap, :guarantees, gmap, :result, rtype}}
