@@ -72,11 +72,4 @@ defmodule Evaluation.Commands.CommandsGeneration do
 		generateFinalCommands([new_c | cs], [{var, ft} | ffvst], g)
 	end
 
-	defp generateFinalCommandsOld(cs, [], _g), do: cs
-	defp generateFinalCommandsOld(cs, [s | st], g) do
-		h = Graph.getHost(g, s)
-		new_c = {:final, s, h}
-		generateFinalCommandsOld([new_c | cs], st, g)
-	end
-
 end
