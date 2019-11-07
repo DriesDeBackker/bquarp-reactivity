@@ -1,4 +1,4 @@
-# Buffered Quality Aware Reactive Programming with Flexible Consistency Guarantees (for the IoT) (BQUARP+)
+# BQUARP+: Buffered Quality Aware Reactive Programming with Flexible Consistency Guarantees (for the IoT)
 
 A library for Distributed Reactive Programming (DRP) with flexible consistency guarantees. Draws from, implements and aims to improve upon 'Quality Aware Reactive Programming for the IoT (QUARP)' by Proença, Baquero (https://haslab.uminho.pt/joseproenca/files/quarp.pdf).
 
