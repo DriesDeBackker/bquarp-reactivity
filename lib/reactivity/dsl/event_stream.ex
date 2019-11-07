@@ -11,15 +11,15 @@ defmodule Reactivity.DSL.EventStream do
   require Logger
 
   @doc """
-  Checks if the given argument is an Event Stream.
+  Checks if the given object `o` is an Event Stream.
   """
-  def is_event_stream?({:event_stream, _sobs, _gs}), do: true
+  def is_event_stream?({:event_stream, _sobs, _gs}=_o), do: true
   def is_event_stream?(_o), do: false
 
   @doc """
-  Creates an Event Stream from a plain Observable.
+  Creates an Event Stream from a plain Observable `obs`.
 
-  Attaches the given Guarantee to it if provided.
+  Attaches the given Guarantee `g` to it if provided.
   Otherwise attaches the globally defined Guarantee,
   which is FIFO (the absence of any Guarantee) by default.
   """
@@ -40,7 +40,7 @@ defmodule Reactivity.DSL.EventStream do
   end
 
   @doc """
-  Creates an Event Stream from a Signal Observable and tags it with the given guarantees.
+  Creates an Event Stream from a Signal Observable `sobs` and tags it with the given guarantees `gs`.
 
   The assumption here is that the contexts of the Signal Observable have already been attached.
   The primitive can be used for Guarantees with non-obvious Contexts (other than e.g. counters)
@@ -64,9 +64,9 @@ defmodule Reactivity.DSL.EventStream do
   end
 
   @doc """
-  Transforms the Event Stream into a Behaviour.
+  Transforms the Event Stream `es` into a Behaviour by adhering to its latest change.
   """
-  def hold({:event_stream, sobs, cgs}) do
+  def hold({:event_stream, sobs, cgs}=_es) do
     {:behaviour, sobs, cgs}
   end
 
@@ -84,18 +84,18 @@ defmodule Reactivity.DSL.EventStream do
   Thus, filtering in this way can be considered to be the creation of a new source Signal 
   with the given Guarantee in a stratified dependency graph.
   """
-  def filter({:event_stream, sobs, _cg}, pred, new_cg) do
+  def filter({:event_stream, sobs, _cg}=_es, pred, g) do
     fobs =
       sobs
       |> Sobs.to_plain_obs()
       |> Obs.filter(pred)
       |> Sobs.from_plain_obs()
-      |> Sobs.add_context(new_cg)
+      |> Sobs.add_context(g)
 
-    {:event_stream, fobs, [new_cg]}
+    {:event_stream, fobs, [g]}
   end
 
-  def filter({:event_stream, sobs, cgs}, pred) do
+  def filter({:event_stream, sobs, cgs}=_es, pred) do
     fobs =
       sobs
       |> Obs.filter(fn {v, _cs} -> pred.(v) end)
@@ -116,15 +116,15 @@ defmodule Reactivity.DSL.EventStream do
   Thus, merging in this way can be considered to be the creation of a new source Signal 
   with the given Guarantee in a stratified dependency graph.
   """
-  def merge(ess, new_g) do
+  def merge(ess, g) do
     sobss =
       ess
       |> Enum.map(fn {:event_stream, sobs, _gs} -> sobs end)
     mobs =
       Obs.merge(sobss)
-      |> Sobs.set_context(new_g)
+      |> Sobs.set_context(g)
 
-    {:event_stream, mobs, [new_g]}
+    {:event_stream, mobs, [g]}
   end
   def merge([{:event_stream, _obs, gs} | _st] = signals) do
     sobss =
@@ -151,15 +151,15 @@ defmodule Reactivity.DSL.EventStream do
   Thus, merging in this way can be considered to be the creation of a new source Signal 
   with the given Guarantee in a stratified dependency graph.
   """
-  def rotate(ess, new_cg) do
+  def rotate(ess, g) do
     sobss =
       ess
       |> Enum.map(fn {:event_stream, sobs, _cgs} -> sobs end)
     robs =
       Obs.rotate(sobss)
-      |> Sobs.set_context(new_cg)
+      |> Sobs.set_context(g)
 
-    {:event_stream, robs, [new_cg]}
+    {:event_stream, robs, [g]}
   end
   def rotate([{:event_stream, _obs, cgs} | _st] = ess) do
     sobss =
@@ -171,17 +171,17 @@ defmodule Reactivity.DSL.EventStream do
   end
 
   @doc """
-  Applies a given procedure to the values of an Event Stream and its previous result. 
+  Applies a given binary function `f` to the values of an Event Stream `es` and its previous result. 
   Works in the same way as the Enum.scan function:
 
   Enum.scan(1..10, fn(x,y) -> x + y end)
   => [1, 3, 6, 10, 15, 21, 28, 36, 45, 55]
   """
-  def scan({:event_stream, sobs, cgs}, func, default \\ nil) do
+  def scan({:event_stream, sobs, cgs}=_es, f, default \\ nil) do
     svobs =
       sobs
       |> Sobs.to_plain_obs()
-      |> Obs.scan(func, default)
+      |> Obs.scan(f, default)
     cobs =
       sobs
       |> Sobs.to_context_obs()
@@ -195,7 +195,7 @@ defmodule Reactivity.DSL.EventStream do
   @doc """
   Delays each produced item by the given interval.
   """
-  def delay({:event_stream, sobs, cgs}, interval) do
+  def delay({:event_stream, sobs, cgs}=_es, interval) do
     dobs = 
       sobs
       |> Obs.delay(interval)
@@ -203,28 +203,28 @@ defmodule Reactivity.DSL.EventStream do
   end
 
   @doc """
-  Filters out values that have already been produced at some point.
+  Filters out values of an Event Stream `es` that have already been produced at some point.
 
   If no Guarantee is provided, it does not alter the Event Stream Messages.
   The consequences of using this operator in this way are left to the developer.
 
-  If however a Guarantee is provided, it is attached to the resulting Event Stream as its new Guarantee,
+  If however a Guarantee `g` is provided, it is attached to the resulting Event Stream as its new Guarantee,
   replacing any previous ones. This is reflected in the Message Contexts.
   This can be considered to be the creation of a new source Signal 
   with the given Guarantee in a stratified dependency graph.
   """
-  def distinct({:event_stream, sobs, _cgs}, new_cg) do
+  def distinct({:event_stream, sobs, _cgs}=_es, g) do
     dsobs =
       sobs
       |> Sobs.to_plain_obs()
       |> Obs.distinct(fn(x,y) -> x == y end)
       |> Sobs.from_plain_obs()
-      |> Sobs.add_context(new_cg)
+      |> Sobs.add_context(g)
 
-    {:event_stream, dsobs, [new_cg]}
+    {:event_stream, dsobs, [g]}
   end
 
- def distinct({:event_stream, sobs, cgs}) do
+ def distinct({:event_stream, sobs, cgs}=_es) do
     dsobs =
       sobs
       |> Obs.distinct(fn({v1, _cs1}, {v2, _cs2}) -> v1 == v2 end)
@@ -233,7 +233,7 @@ defmodule Reactivity.DSL.EventStream do
   end
 
   @doc """
-  Filters out values that are equal to the most recently produced value.
+  Filters out values of an Event Stream `es` that are equal to the most recently produced value.
 
   If no Guarantee is provided, it does not alter the Event Stream Messages.
   The consequences of using this operator in this way are left to the developer.
@@ -243,18 +243,18 @@ defmodule Reactivity.DSL.EventStream do
   This can be considered to be the creation of a new source Signal 
   with the given Guarantee in a stratified dependency graph.
   """
-  def novel({:event_stream, sobs, _cgs}, new_cg) do
+  def novel({:event_stream, sobs, _cgs}=_es, g) do
     nsobs =
       sobs
       |> Sobs.to_plain_obs()
       |> Obs.novel(fn(x,y) -> x == y end)
       |> Sobs.from_plain_obs()
-      |> Sobs.add_context(new_cg)
+      |> Sobs.add_context(g)
 
-    {:event_stream, nsobs, [new_cg]}
+    {:event_stream, nsobs, [g]}
   end
 
- def novel({:event_stream, sobs, cgs}) do
+ def novel({:event_stream, sobs, cgs}=_es) do
     nsobs =
       sobs
       |> Obs.novel(fn({v1, _cs1}, {v2, _cs2}) -> v1 == v2 end)
@@ -263,10 +263,10 @@ defmodule Reactivity.DSL.EventStream do
   end
 
   @doc """
-  Applies a procedure to the values of an Event Stream without changing them.
+  Applies a procedure to the values of an Event Stream `es` without changing them.
   Generally used for side effects.
   """
-  def each({:event_stream, sobs, cgs}, proc) do
+  def each({:event_stream, sobs, cgs}=_es, proc) do
     sobs
     |> Sobs.to_plain_obs()
     |> Obs.each(proc)
@@ -277,7 +277,7 @@ defmodule Reactivity.DSL.EventStream do
   @doc """
   Switches from an intial Event Stream to newly supplied Behaviours.
 
-  Takes an initial Event Stream and a higher-order Event Stream carrying Event Streams.
+  Takes an initial Event Stream `es` and a higher-order Event Stream `he` carrying Event Streams.
   Returns an Event Stream that is at first equal to the initial Event Stream.
   Each time the higher order Event Stream emits a new Event Stream,
   the returned Event Stream switches to this new Event Stream.
@@ -285,7 +285,7 @@ defmodule Reactivity.DSL.EventStream do
   Requires that all Event Streams carry values of the same type 
   and have the same set of consistency guarantees.
   """
-  def switch({:event_stream, es_sobs, gs}, {:event_stream, hes_sobs, _}) do
+  def switch({:event_stream, es_sobs, gs}=_es, {:event_stream, hes_sobs, _}=_he) do
     switch_obs =
       hes_sobs
       |> Obs.map(fn {{:event_stream, obs, _}, _gs} -> obs end)
@@ -298,14 +298,14 @@ defmodule Reactivity.DSL.EventStream do
   Switches from one Event Stream to another on an event occurrence.
 
   Takes three Event Streams.
-  Returns an Event Stream that emits the events of the first Event Stream until an event on the third Event Stream occurs,
-  at which point the resulting Event Stream switches to the second Event Stream.
-  The value of the switching event is not relevant.
+  Returns an Event Stream that emits the events of the first Event Stream `es1` until an event on the third Event Stream `es` occurs,
+  at which point the resulting Event Stream switches to the second Event Stream `es2`.
+  The value of the switching event is irrelevant.
 
   Requires that both Event Streams have the same set of consistency guarantees
   and carry values of the same type.
   """
-  def until({:event_stream, es_sobs1, gs1}, {:event_stream, es_sobs2, _gs2}, {:event_stream, es_sobs, _gse}) do
+  def until({:event_stream, es_sobs1, gs1}=_es1, {:event_stream, es_sobs2, _gs2}=_es2, {:event_stream, es_sobs, _gse}=_es) do
     robs = Obs.until(es_sobs1, es_sobs2, es_sobs)
     {:event_stream, robs, gs1}
   end

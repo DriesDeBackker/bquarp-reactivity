@@ -17,9 +17,9 @@ defmodule Reactivity.DSL.Behaviour do
   def is_behaviour?(_o), do: false
 
   @doc """
-  Creates a Behaviour from a plain Observable.
+  Creates a Behaviour from a plain RX Observable `obs`.
 
-  Attaches the given Guarantee to it if provided.
+  Attaches the given Guarantee `g` to it if provided.
   Otherwise attaches the globally defined Guarantee,
   which is FIFO (the absence of any Guarantee) by default.
   """
@@ -64,9 +64,9 @@ defmodule Reactivity.DSL.Behaviour do
   end
 
   @doc """
-  Returns the current value of the Behaviour.
+  Returns the current value of the Behaviour `b`.
   """
-  def evaluate({:behaviour, sobs, _gs}) do
+  def evaluate({:behaviour, sobs, _gs}=_b) do
     case Obs.last(sobs) do
       nil     -> nil
       {v, _c} -> v
@@ -74,23 +74,23 @@ defmodule Reactivity.DSL.Behaviour do
   end
 
   @doc """
-  Transforms a Behaviour into an Event Stream.
+  Transforms a Behaviour `b` into an Event Stream.
   """
-  def changes({:behaviour, sobs, gs}) do
+  def changes({:behaviour, sobs, gs}=_b) do
     {:event_stream, sobs, gs}
   end
 
   @doc """
   Switches from an intial Behaviour to newly supplied Behaviours.
 
-  Takes an initial Behaviour and a higher-order Event Stream carrying Behaviours.
+  Takes an initial Behaviour `b` and a higher-order Event Stream `eh` carrying Behaviours.
   Returns a Behaviour that is at first equal to the initial Behaviour.
   Each time the Event Stream emits a new Behaviour,
   the returned Behaviour switches to this new Behaviour.
 
   Requires that all Behaviours have the same set of consistency guarantees.
   """
-  def switch({:behaviour, b_sobs, gs}, {:event_stream, es_sobs, _}) do
+  def switch({:behaviour, b_sobs, gs}=_b, {:event_stream, es_sobs, _}=_eh) do
     switch_obs =
       es_sobs
       |> Obs.map(fn {{:behaviour, obs, _}, _gs} -> obs end)
@@ -102,14 +102,14 @@ defmodule Reactivity.DSL.Behaviour do
   @doc """
   Switches from one Behaviour to another on an event occurrence.
 
-  Takes a two Behaviours and an Event Stream.
+  Takes two Behaviours, `b1` and `b2`, and an Event Stream `es`.
   Returns a Behaviour that is equal to the first Behaviour until the an event occurs,
   at which point the resulting Behaviour switches to the second Behaviour.
-  The value of the event is not relevant.
+  The value of the event is irrelevant.
 
   Requires that both Behaviours have the same set of consistency guarantees.
   """
-  def until({:behaviour, b_sobs1, gs1}, {:behaviour, b_sobs2, _gs2}, {:event_stream, es_sobs, _gse}) do
+  def until({:behaviour, b_sobs1, gs1}=_b1, {:behaviour, b_sobs2, _gs2}=_b2, {:event_stream, es_sobs, _gse}=_es) do
     robs = Obs.until_repeat(b_sobs1, b_sobs2, es_sobs)
     {:behaviour, robs, gs1}
   end
