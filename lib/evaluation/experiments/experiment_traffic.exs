@@ -37,7 +37,9 @@ var = fn name, im, isd, vm, vsd ->
 		var_handle = Subject.create
 		run = fn
 			f -> 
-				Subject.next(var_handle, :rand.normal(vm, vsd*vsd) |> round)
+				val = :rand.normal(vm, vsd*vsd) |> round
+				IO.puts("Var #{name} has a new value: #{val}")
+				Subject.next(var_handle, val)
 				:timer.sleep(round(:rand.normal(im, isd*isd)))
 				f.(f)
 			end
@@ -61,7 +63,12 @@ mean2 = fn name, dep1, dep2 ->
 	fn -> 
 		sig1 = Signal.signal(dep1)
 		sig2 = Signal.signal(dep2)
-		Signal.liftapp([sig1, sig2], fn x, y -> (x + y) / 2 end)
+		Signal.liftapp([sig1, sig2], 
+			fn x, y -> 
+				val = round((x + y) / 2)
+				IO.puts("Signal #{name} has a new value: #{val}")
+				val
+			end)
 		|> Signal.register(name)
 		:ok
 	end
@@ -72,7 +79,12 @@ mean3 = fn name, dep1, dep2, dep3 ->
 		sig1 = Signal.signal(dep1)
 		sig2 = Signal.signal(dep2)
 		sig3 = Signal.signal(dep3)
-		Signal.liftapp([sig1, sig2, sig3], fn x, y, z -> (x + y + z) / 3 end)
+		Signal.liftapp([sig1, sig2, sig3], 
+			fn x, y, z -> 
+				val = round((x + y + z) / 3)
+				IO.puts("Signal #{name} has a new value: #{val}")
+				val
+			end)
 		|> Signal.register(name)
 		:ok
 	end
@@ -84,7 +96,12 @@ mean4 = fn name, dep1, dep2, dep3, dep4 ->
 		sig2 = Signal.signal(dep2)
 		sig3 = Signal.signal(dep3)
 		sig4 = Signal.signal(dep4)
-		Signal.liftapp([sig1, sig2, sig3, sig4], fn v, w, x, y -> (v + w + x + y) / 4 end)
+		Signal.liftapp([sig1, sig2, sig3, sig4], 
+			fn v, w, x, y -> 
+				val = round((v + w + x + y) / 4)
+				IO.puts("Signal #{name} has a new value: #{val}")
+				val
+			end)
 		|> Signal.register(name)
 		:ok
 	end

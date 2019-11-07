@@ -1,4 +1,5 @@
 defmodule Evaluation.Graph do
+  @moduledoc false
 	alias Evaluation.Graph
 
 	defstruct hosts: [], vars: [], signals: [], hostedAt: %{}, deps: %{} 

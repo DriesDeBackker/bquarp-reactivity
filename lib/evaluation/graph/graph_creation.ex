@@ -1,4 +1,5 @@
 defmodule Evaluation.Graph.GraphCreation do
+  @moduledoc false
 	alias Evaluation.Graph
 
 	def generateGraph(params) do

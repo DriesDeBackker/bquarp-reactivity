@@ -1,4 +1,5 @@
 defmodule Evaluation.Adaptations.CombineWithGuaranteesEval do
+  @moduledoc false
   use Observables.GenObservable
   alias Reactivity.Processing.Matching
 
