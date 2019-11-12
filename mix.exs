@@ -4,7 +4,7 @@ defmodule BQuarp.MixProject do
   def project do
     [
       app: :bquarp,
-      version: "0.5.4",
+      version: "0.6.0",
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -24,7 +24,7 @@ defmodule BQuarp.MixProject do
     [
       {:rp_middleware, "~> 0.1.0"},
       {:ex_doc, "~> 0.19", only: :dev},
-      {:observables_extended, "~> 0.3.4"},
+      {:observables_extended, "~> 0.3.5"},
     ]
   end
 

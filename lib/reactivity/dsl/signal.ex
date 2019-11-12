@@ -11,6 +11,7 @@ defmodule Reactivity.DSL.Signal do
   alias Reactivity.DSL.SignalObs, as: Sobs
   alias Reactivity.DSL.EventStream, as: ES
   alias Reactivity.DSL.Behaviour, as: B
+  alias Reactivity.DSL.DoneNotifier
 
   alias Observables.Obs
   alias Observables.GenObservable
@@ -490,8 +491,11 @@ defmodule Reactivity.DSL.Signal do
   @doc """
   Publishes a Signal `s` by its given name `n` by registering it in the Registry.
   """
-  def register({_type, _sobs, _cgs}=s, n) do
+  def register({_type, sobs, _cgs}=s, n) do
     Registry.add_signal(s, n)
+    {:ok, notifier} = DoneNotifier.start(n)
+    {_cont, pid} = sobs
+    GenObservable.notify_done(pid, notifier)
     s
   end
 
